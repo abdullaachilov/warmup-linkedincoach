@@ -25,16 +25,27 @@ app.use(helmet({
   contentSecurityPolicy: { directives: { defaultSrc: ["'none'"] } },
 }));
 
+// Health check (before CORS so monitoring can reach it)
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    await redis.ping();
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'unhealthy', error: 'Service dependencies unavailable' });
+  }
+});
+
 // CORS
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl in dev)
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // Allow requests with no origin (server-to-server, health checks)
+    if (!origin) {
       callback(null, true);
       return;
     }
-    if (origin && (allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://'))) {
+    if (allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -80,17 +91,6 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Request-Id', crypto.randomUUID());
   next();
-});
-
-// Health check
-app.get('/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    await redis.ping();
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(503).json({ status: 'unhealthy', error: 'Service dependencies unavailable' });
-  }
 });
 
 // Algorithm knowledge base endpoint
