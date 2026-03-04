@@ -1,0 +1,131 @@
+import { API_URL } from '../../shared/constants.js';
+
+class WarmupAPI {
+  constructor() {
+    this.token = null;
+    this.refreshToken = null;
+  }
+
+  async init() {
+    const stored = await chrome.storage.local.get(['jwt', 'refreshToken']);
+    this.token = stored.jwt || null;
+    this.refreshToken = stored.refreshToken || null;
+  }
+
+  isLoggedIn() {
+    return !!this.token;
+  }
+
+  async request(method, path, body = null) {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    // If user is BYOK, include their key
+    const { byokKey } = await chrome.storage.local.get('byokKey');
+    if (byokKey) {
+      headers['X-BYOK-Key'] = byokKey;
+    }
+
+    const response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null,
+    });
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshAuth();
+      if (refreshed) return this.request(method, path, body);
+      // Clear tokens and signal re-login needed
+      await chrome.storage.local.remove(['jwt', 'refreshToken']);
+      this.token = null;
+      this.refreshToken = null;
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    if (response.status === 429) {
+      const data = await response.json();
+      throw new Error(data.error || 'Rate limit reached. Please wait.');
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(data.error || `Request failed with status ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async refreshAuth() {
+    if (!this.refreshToken) return false;
+    try {
+      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      this.token = data.jwt;
+      this.refreshToken = data.refreshToken;
+      await chrome.storage.local.set({ jwt: data.jwt, refreshToken: data.refreshToken });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Auth
+  async register(email, password) {
+    return this.request('POST', '/api/auth/register', { email, password });
+  }
+
+  async login(email, password) {
+    const result = await this.request('POST', '/api/auth/login', { email, password });
+    this.token = result.jwt;
+    this.refreshToken = result.refreshToken;
+    await chrome.storage.local.set({ jwt: result.jwt, refreshToken: result.refreshToken });
+    return result;
+  }
+
+  async logout() {
+    try { await this.request('POST', '/api/auth/logout'); } catch {}
+    await chrome.storage.local.remove(['jwt', 'refreshToken']);
+    this.token = null;
+    this.refreshToken = null;
+  }
+
+  // User
+  async getMe() { return this.request('GET', '/api/me'); }
+  async updateProfile(data) { return this.request('PUT', '/api/me/profile', data); }
+
+  // AI
+  async suggestComment(postText, authorName) {
+    return this.request('POST', '/api/ai/suggest-comment', { post_text: postText, author_name: authorName });
+  }
+  async draftPost(idea, contentType) {
+    return this.request('POST', '/api/ai/draft-post', { idea, content_type: contentType });
+  }
+  async getPostIdeas(feedContext) {
+    return this.request('POST', '/api/ai/post-ideas', { feed_context: feedContext });
+  }
+  async generateConnectionNote(targetName, targetHeadline) {
+    return this.request('POST', '/api/ai/connection-note', { target_name: targetName, target_headline: targetHeadline });
+  }
+
+  // Sessions
+  async getToday() { return this.request('GET', '/api/sessions/today'); }
+  async updateToday(data) { return this.request('PUT', '/api/sessions/today', data); }
+  async getStreak() { return this.request('GET', '/api/sessions/streak'); }
+  async getStats() { return this.request('GET', '/api/sessions/stats'); }
+
+  // Billing
+  async createCheckout(priceId) { return this.request('POST', '/api/billing/checkout', { priceId }); }
+  async getBillingStatus() { return this.request('GET', '/api/billing/status'); }
+}
+
+export const api = new WarmupAPI();
