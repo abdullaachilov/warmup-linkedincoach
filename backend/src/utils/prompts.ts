@@ -17,7 +17,7 @@ Their expertise: ${topics.length > 0 ? topics.join(', ') : 'General'}`,
   'draft-post': (headline: string, industry: string, topics: string[]) => `You are a LinkedIn content strategist. Draft a LinkedIn post optimized for reach and engagement.
 
 Rules:
-- First line MUST be a strong hook — this appears before "...see more" fold. Make it impossible to scroll past.
+- First line MUST be a strong hook - this appears before "...see more" fold. Make it impossible to scroll past.
 - Short paragraphs: 1-2 sentences each. Blank line between each paragraph.
 - Total length: 100-200 words
 - No hashtag spam. Place 2-3 relevant hashtags at the very end, after a line break.
@@ -40,7 +40,7 @@ Each idea should be:
 - Tagged with content type: [insight], [how-to], [story], [question], [celebration]
 - Relevant to the user's industry and expertise
 - Timely if possible (reference current trends)
-- Varied — don't repeat the same format
+- Varied - don't repeat the same format
 
 Return as a JSON array:
 [

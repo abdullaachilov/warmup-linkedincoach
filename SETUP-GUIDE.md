@@ -1,4 +1,4 @@
-# Warmup — Complete Setup Guide
+# Warmup - Complete Setup Guide
 
 ## Step 1: Anthropic API Keys
 
@@ -17,9 +17,9 @@ Go to dashboard.stripe.com
 A) Developers → API Keys → copy Secret key → STRIPE_SECRET_KEY
 
 B) Products → Create 3 products:
-- "Warmup Starter" — $5/month recurring → copy Price ID → STRIPE_STARTER_PRICE_ID
-- "Warmup Pro" — $15/month recurring → copy Price ID → STRIPE_PRO_PRICE_ID
-- "Warmup BYOK" — $5/year one-time → copy Price ID → STRIPE_BYOK_PRICE_ID
+- "Warmup Starter" - $5/month recurring → copy Price ID → STRIPE_STARTER_PRICE_ID
+- "Warmup Pro" - $15/month recurring → copy Price ID → STRIPE_PRO_PRICE_ID
+- "Warmup BYOK" - $5/year one-time → copy Price ID → STRIPE_BYOK_PRICE_ID
 
 C) Developers → Webhooks → Add endpoint:
 - URL: https://warmup-api-production.up.railway.app/api/billing/webhook
@@ -62,7 +62,7 @@ Railway auto-redeploys after saving variables.
 
 ---
 
-## Step 5: Chrome Extension — Publish
+## Step 5: Chrome Extension - Publish
 
 A) Get HMAC_SHARED_SECRET value from Railway → warmup-api → Variables
 
@@ -79,7 +79,7 @@ D) Zip the extension/ folder
 
 E) Go to chrome.google.com/webstore/devconsole
     - New item → upload zip
-    - Name: Warmup — Daily LinkedIn Coach
+    - Name: Warmup - Daily LinkedIn Coach
     - Description: Your daily 5-minute LinkedIn growth routine. AI-powered coaching, zero automation.
     - Category: Productivity
     - Add screenshots
@@ -92,14 +92,14 @@ F) After approval, copy Extension ID and update on Railway:
 
 ## Step 6: Landing Page (optional)
 
-Option A — Cloudflare Pages:
+Option A - Cloudflare Pages:
     1. dash.cloudflare.com → Pages → Create project
     2. Connect GitHub repo warmup-linkedincoach
     3. Root directory: landing-page
     4. Build command: npm run build
     5. Output directory: dist
 
-Option B — Skip for now, use Railway URL directly.
+Option B - Skip for now, use Railway URL directly.
 
 ---
 

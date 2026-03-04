@@ -29,7 +29,7 @@ function App() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <a href={CHROME_STORE_URL} className="px-8 py-3 bg-purple-600 text-white rounded-xl text-lg font-medium hover:bg-purple-700 transition shadow-lg shadow-purple-200">
-              Add to Chrome — Free
+              Add to Chrome - Free
             </a>
             <a href="#pricing" className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl text-lg font-medium hover:bg-gray-200 transition">
               See Pricing
@@ -85,7 +85,7 @@ function App() {
       <section className="py-16 bg-purple-50 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-xl text-gray-700 italic">"I went from 50 impressions per post to 2,000+ in three weeks just by being consistent with Warmup."</p>
-          <p className="mt-4 text-sm text-gray-500">— Early beta user</p>
+          <p className="mt-4 text-sm text-gray-500">- Early beta user</p>
         </div>
       </section>
 
@@ -131,7 +131,7 @@ function App() {
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Frequently Asked Questions</h2>
           <div className="space-y-6">
             {[
-              { q: 'Does this automate my LinkedIn?', a: 'No. Warmup coaches you through actions — you do all the clicking, typing, and posting yourself. Zero automation, zero ToS risk.' },
+              { q: 'Does this automate my LinkedIn?', a: 'No. Warmup coaches you through actions - you do all the clicking, typing, and posting yourself. Zero automation, zero ToS risk.' },
               { q: 'Is this against LinkedIn\'s Terms of Service?', a: 'No. The extension reads your feed for context (same as you reading it) and suggests content you copy-paste. No automation, no API abuse.' },
               { q: 'What AI model does it use?', a: 'Claude by Anthropic (Sonnet 4.5). BYOK users can use their own Anthropic API key for unlimited suggestions.' },
               { q: 'Where is my data stored?', a: 'Your coaching profile and progress are stored on our servers. Your LinkedIn data is only read in your browser and never sent to us except the minimal context needed for AI suggestions.' },
@@ -152,7 +152,7 @@ function App() {
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to grow your LinkedIn presence?</h2>
           <p className="text-gray-600 mb-8">Join thousands of professionals who grow their reach in just 5 minutes a day.</p>
           <a href={CHROME_STORE_URL} className="px-8 py-3 bg-purple-600 text-white rounded-xl text-lg font-medium hover:bg-purple-700 transition shadow-lg shadow-purple-200 inline-block">
-            Add to Chrome — Free
+            Add to Chrome - Free
           </a>
         </div>
       </section>
@@ -162,8 +162,8 @@ function App() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <span className="text-sm text-gray-500">Built with care. Not affiliated with LinkedIn.</span>
           <div className="flex gap-6 text-sm text-gray-500">
-            <a href="#" className="hover:text-gray-900">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-900">Terms</a>
+            <a href="/privacy" className="hover:text-gray-900">Privacy Policy</a>
+            <a href="/terms" className="hover:text-gray-900">Terms</a>
             <a href="mailto:hello@warmup.li" className="hover:text-gray-900">Contact</a>
           </div>
         </div>
