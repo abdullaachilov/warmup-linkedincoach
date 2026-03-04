@@ -11,7 +11,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/migrations ./src/migrations
+COPY backend/src/ ./src/
 RUN npm install tsx
 EXPOSE 3000
 CMD ["sh", "-c", "npx tsx src/migrations/run.ts && node dist/index.js"]
