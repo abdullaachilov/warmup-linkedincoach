@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CHROME_STORE_URL = '#'; // Update with actual Chrome Web Store link
+const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/warmup-daily-linkedin-coa/baippjjmfcohnhbggbilelehdecpddop';
 
 function App() {
   return (
