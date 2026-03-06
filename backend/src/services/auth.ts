@@ -82,6 +82,8 @@ export class AuthService {
 
     let userId: string;
 
+    const isSuperAdmin = SUPER_ADMIN_EMAIL && email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
     if (userResult.rows.length > 0) {
       // Existing user - update profile info
       const user = userResult.rows[0];
@@ -89,10 +91,17 @@ export class AuthService {
         throw new AppError('Account is suspended.', 403);
       }
       userId = user.id;
-      await db.query(
-        'UPDATE users SET email = $1, name = $2, picture_url = $3, updated_at = NOW() WHERE id = $4',
-        [email.toLowerCase(), name, pictureUrl, userId]
-      );
+      if (isSuperAdmin) {
+        await db.query(
+          'UPDATE users SET email = $1, name = $2, picture_url = $3, role = $4, tier = $5, updated_at = NOW() WHERE id = $6',
+          [email.toLowerCase(), name, pictureUrl, 'admin', 'pro', userId]
+        );
+      } else {
+        await db.query(
+          'UPDATE users SET email = $1, name = $2, picture_url = $3, updated_at = NOW() WHERE id = $4',
+          [email.toLowerCase(), name, pictureUrl, userId]
+        );
+      }
     } else {
       // Check if email already exists (link accounts)
       const emailResult = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -104,10 +113,11 @@ export class AuthService {
         );
       } else {
         // New user
-        const role = email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user';
+        const role = isSuperAdmin ? 'admin' : 'user';
+        const tier = isSuperAdmin ? 'pro' : 'free';
         const result = await db.query(
-          'INSERT INTO users (email, linkedin_id, name, picture_url, email_verified, role) VALUES ($1, $2, $3, $4, TRUE, $5) RETURNING id',
-          [email.toLowerCase(), linkedinId, name, pictureUrl, role]
+          'INSERT INTO users (email, linkedin_id, name, picture_url, email_verified, role, tier) VALUES ($1, $2, $3, $4, TRUE, $5, $6) RETURNING id',
+          [email.toLowerCase(), linkedinId, name, pictureUrl, role, tier]
         );
         userId = result.rows[0].id;
 

@@ -96,6 +96,13 @@ function startGoldenWindowTimer() {
   }, 1000);
 }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 function getStreakMessage(streak) {
   if (streak === 7) return 'One week streak! You\'re building a real habit.';
   if (streak === 14) return 'Two weeks strong! Consistency is paying off.';
@@ -141,87 +148,87 @@ function render() {
 }
 
 function renderLoading() {
-  return `<div class="flex items-center justify-center h-screen">
-    <div class="text-center">
-      <div class="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p class="mt-3 text-gray-500 text-sm">Loading Warmup...</p>
+  return `<div style="display:flex;align-items:center;justify-content:center;height:100vh">
+    <div style="text-align:center">
+      <div style="width:40px;height:40px;border:3px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto"></div>
+      <p style="margin-top:12px;color:#9ca3af;font-size:13px">Loading...</p>
     </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </div>`;
 }
 
 function renderAuth() {
-  return `<div class="p-6">
-    <div class="text-center mb-8">
-      <h1 class="text-2xl font-bold" style="background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(135deg, #667eea, #764ba2);">Warmup</h1>
-      <p class="text-gray-500 text-sm mt-1">Your Daily LinkedIn Growth Coach</p>
+  return `<div style="padding:48px 24px 24px;text-align:center">
+    <div style="margin-bottom:32px">
+      <div style="font-size:32px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent">Warmup</div>
+      <p style="color:#6b7280;font-size:14px;margin-top:6px">Your Daily LinkedIn Growth Coach</p>
     </div>
-    ${state.error ? `<div class="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">${state.error}</div>` : ''}
-    <button id="btn-linkedin-login" class="w-full flex items-center justify-center gap-3 py-3 bg-[#0A66C2] text-white rounded-lg text-sm font-medium hover:bg-[#004182] transition">
+    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px;text-align:left">${state.error}</div>` : ''}
+    <button id="btn-linkedin-login" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:#0A66C2;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:background 0.15s">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
       Sign in with LinkedIn
     </button>
-    <p class="text-center text-xs text-gray-400 mt-6">Zero automation. 100% guided growth.</p>
-    <p class="text-center text-xs text-gray-300 mt-2">By signing in, you agree to our Terms & Privacy Policy.</p>
+    <p style="margin-top:32px;font-size:12px;color:#9ca3af">Zero automation. 100% guided growth.</p>
+    <p style="margin-top:8px;font-size:11px;color:#d1d5db">By signing in, you agree to our Terms & Privacy Policy.</p>
   </div>`;
 }
 
 function renderAuthPolling() {
-  return `<div class="p-6">
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-bold" style="background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(135deg, #667eea, #764ba2);">Warmup</h1>
-    </div>
-    <div class="text-center">
-      <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p class="mt-4 text-gray-600 text-sm font-medium">Waiting for LinkedIn login...</p>
-      <p class="mt-1 text-gray-400 text-xs">Complete the sign-in in the opened tab.</p>
-    </div>
-    <button id="btn-cancel-login" class="w-full mt-6 py-2 text-gray-500 text-sm hover:text-gray-700">Cancel</button>
+  return `<div style="padding:48px 24px 24px;text-align:center">
+    <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:32px">Warmup</div>
+    <div style="width:48px;height:48px;border:3px solid #0A66C2;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto"></div>
+    <p style="margin-top:20px;color:#374151;font-size:14px;font-weight:500">Waiting for LinkedIn...</p>
+    <p style="margin-top:6px;color:#9ca3af;font-size:12px">Complete sign-in in the opened tab</p>
+    <button id="btn-cancel-login" style="margin-top:24px;padding:8px 20px;background:none;border:1px solid #e5e7eb;border-radius:8px;color:#6b7280;font-size:13px;cursor:pointer">Cancel</button>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </div>`;
 }
 
 function render2FA() {
-  return `<div class="p-6">
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-bold" style="background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(135deg, #667eea, #764ba2);">Warmup</h1>
-      <p class="text-gray-500 text-sm mt-1">Two-Factor Authentication</p>
+  return `<div style="padding:48px 24px 24px">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent">Warmup</div>
+      <p style="color:#6b7280;font-size:13px;margin-top:6px">Two-Factor Authentication</p>
     </div>
-    ${state.error ? `<div class="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">${state.error}</div>` : ''}
-    <p class="text-sm text-gray-600 mb-4">Enter the 6-digit code from your authenticator app.</p>
-    <form id="2fa-form" class="space-y-3">
-      <input type="text" id="2fa-code" placeholder="000000" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center text-2xl tracking-widest focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none" />
-      <button type="submit" class="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition">Verify</button>
+    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px">${state.error}</div>` : ''}
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">Enter the 6-digit code from your authenticator app.</p>
+    <form id="2fa-form">
+      <input type="text" id="2fa-code" placeholder="000000" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" style="width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:12px;font-size:24px;text-align:center;letter-spacing:8px;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'" />
+      <button type="submit" style="width:100%;margin-top:12px;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Verify</button>
     </form>
-    <button id="btn-back-login" class="w-full text-center text-xs text-gray-500 mt-3 hover:underline">Back to login</button>
+    <button id="btn-back-login" style="display:block;margin:12px auto 0;background:none;border:none;color:#9ca3af;font-size:12px;cursor:pointer">Back to login</button>
   </div>`;
 }
 
 function renderOnboarding() {
-  const userName = state.user?.name || '';
-  return `<div class="p-6">
-    <h2 class="text-lg font-bold mb-1">Welcome${userName ? ', ' + userName : ''}!</h2>
-    <p class="text-gray-500 text-sm mb-4">Tell us about yourself so we can personalize your coaching.</p>
+  const userName = state.user?.name?.split(' ')[0] || '';
+  return `<div style="padding:24px">
+    <div style="margin-bottom:20px">
+      <h2 style="font-size:20px;font-weight:700;margin:0">Welcome${userName ? ', ' + userName : ''}!</h2>
+      <p style="color:#6b7280;font-size:13px;margin-top:4px">Tell us about yourself so we can personalize your daily routine.</p>
+    </div>
 
-    <button id="btn-parse-profile" class="w-full mb-4 py-2 bg-[#0A66C2] text-white rounded-lg text-sm font-medium hover:bg-[#004182] transition flex items-center justify-center gap-2">
+    <button id="btn-parse-profile" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#0A66C2;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
       Import from LinkedIn Profile
     </button>
-    <div id="parse-status" class="hidden mb-3 p-2 rounded-lg text-xs text-center"></div>
-    <p class="text-center text-xs text-gray-400 mb-3">- or fill in manually -</p>
+    <div id="parse-status" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:8px;font-size:12px;text-align:center"></div>
+    <div style="text-align:center;font-size:11px;color:#d1d5db;margin-bottom:16px">or fill in manually</div>
 
-    <form id="onboarding-form" class="space-y-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Your LinkedIn Headline</label>
-        <input type="text" id="ob-headline" placeholder="e.g., Senior Product Manager at Acme" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+    <form id="onboarding-form">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">Your LinkedIn Headline</label>
+        <input type="text" id="ob-headline" placeholder="e.g., Senior Product Manager at Acme" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'" />
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Industry</label>
-        <input type="text" id="ob-industry" placeholder="e.g., Technology, Marketing" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">Industry</label>
+        <input type="text" id="ob-industry" placeholder="e.g., Technology, Marketing" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'" />
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Topics you post about (comma-separated)</label>
-        <input type="text" id="ob-topics" placeholder="e.g., AI, Leadership, Product" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">Topics you post about</label>
+        <input type="text" id="ob-topics" placeholder="e.g., AI, Leadership, Product" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'" />
       </div>
-      <button type="submit" class="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Start My Routine</button>
+      <button type="submit" style="width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Start My Routine</button>
     </form>
   </div>`;
 }
@@ -235,116 +242,183 @@ function renderDashboard() {
   const longestStreak = state.streak?.longest_streak || 0;
   const tierLimit = TIER_LIMITS[state.user?.tier || 'free'];
   const streakMsg = getStreakMessage(streakCount);
+  const totalActions = state.session?.total_actions || 10;
+  const pct = Math.round((completedActions.length / totalActions) * 100);
 
   const isConnectDay = [1, 3, 5].includes(dayOfWeek);
   const isGrowDay = [2, 4].includes(dayOfWeek);
 
-  const goldenWindowHtml = state.goldenWindowStart ? `
-    <div class="mx-4 mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg flex justify-between items-center text-xs">
-      <span class="text-amber-700 font-medium">Golden Window Active</span>
-      <span id="golden-timer" class="text-amber-600 font-mono font-bold">--:--</span>
-    </div>` : '';
+  // Progress ring SVG
+  const radius = 23;
+  const circ = 2 * Math.PI * radius;
+  const dashoffset = circ - (pct / 100) * circ;
 
   const usedCount = state.usage?.used || 0;
+  const firstName = state.user?.name?.split(' ')[0] || '';
 
-  return `<div class="pb-4">
-    <div class="p-4 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-      <div class="flex justify-between items-center mb-2">
-        <h1 class="text-lg font-bold">Warmup</h1>
-        <button id="btn-settings" class="text-white/80 hover:text-white text-sm">Settings</button>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="text-center">
-          <div class="text-2xl font-bold">${streakCount > 0 ? streakCount : '-'}</div>
-          <div class="text-xs text-white/70">day streak</div>
-          ${longestStreak > streakCount ? `<div class="text-xs text-white/50">best: ${longestStreak}</div>` : ''}
+  return `<div style="padding-bottom:16px">
+    <!-- Header -->
+    <div style="padding:20px 16px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <div style="font-size:14px;opacity:0.8">${getGreeting()}${firstName ? ', ' + firstName : ''}</div>
+          <div style="font-size:11px;opacity:0.6;margin-top:2px">${calendar.emoji} Today: ${calendar.label}</div>
         </div>
-        <div class="flex-1 text-right">
-          <div class="text-xs text-white/70">${calendar.emoji} ${calendar.label}</div>
-          <div class="text-xs text-white/60 mt-1">${completedActions.length} of ${state.session?.total_actions || 10} actions done</div>
+        <button id="btn-settings" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">Settings</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <!-- Progress ring -->
+        <div class="progress-ring">
+          <svg width="56" height="56">
+            <circle cx="28" cy="28" r="${radius}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"/>
+            <circle cx="28" cy="28" r="${radius}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${dashoffset}" style="transition:stroke-dashoffset 0.5s ease"/>
+          </svg>
+          <div class="count">${completedActions.length}</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${completedActions.length} of ${totalActions} tasks done</div>
+          <div style="font-size:11px;opacity:0.7;margin-top:2px">${pct === 100 ? 'All done! Great work today.' : pct >= 50 ? 'Keep it up - past halfway!' : 'Let\'s get started!'}</div>
+        </div>
+        <div style="text-align:center">
+          <div class="streak-num">${streakCount > 0 ? streakCount : '-'}</div>
+          <div class="streak-label">day streak</div>
+          ${longestStreak > streakCount ? `<div style="font-size:10px;opacity:0.5">best: ${longestStreak}</div>` : ''}
         </div>
       </div>
-      <div class="mt-2 bg-white/20 rounded-full h-2">
-        <div class="bg-white rounded-full h-2 transition-all" style="width: ${Math.min(100, (completedActions.length / (state.session?.total_actions || 10)) * 100)}%"></div>
+    </div>
+
+    ${streakMsg ? `<div style="margin:10px 14px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#15803d;text-align:center;font-weight:500">${streakMsg}</div>` : ''}
+
+    ${state.goldenWindowStart ? `
+    <div class="golden-bar" style="margin:10px 14px 0;padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#92400e">Golden Window Active</div>
+        <div style="font-size:11px;color:#a16207">Reply to comments now for max reach</div>
       </div>
+      <div id="golden-timer" style="font-size:18px;font-weight:700;color:#92400e;font-family:monospace">--:--</div>
+    </div>` : ''}
+
+    <!-- Step 1: Engage -->
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:#eff6ff;color:#2563eb">Step 1</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">Engage</span>
+        <span class="section-time">2-3 min</span>
+      </div>
+      ${DAILY_ACTIONS.engage.map(a => renderTask(a, completedActions)).join('')}
     </div>
 
-    ${streakMsg ? `<div class="mx-4 mt-3 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 text-center font-medium">${streakMsg}</div>` : ''}
-    ${goldenWindowHtml}
-
-    <div class="mx-4 mt-3 p-2 bg-purple-50 rounded-lg flex justify-between items-center text-xs">
-      <span class="text-purple-700 font-medium">AI suggestions today</span>
-      <span class="text-purple-600">${usedCount} / ${tierLimit}</span>
-    </div>
-
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Engage (2-3 min)</h3>
-      ${DAILY_ACTIONS.engage.map(action => renderActionCard(action, completedActions)).join('')}
-    </div>
-
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Create (3-5 min)</h3>
-      ${DAILY_ACTIONS.create.map(action => renderActionCard(action, completedActions)).join('')}
+    <!-- Step 2: Create -->
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:#faf5ff;color:#7c3aed">Step 2</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">Create</span>
+        <span class="section-time">3-5 min</span>
+      </div>
+      ${DAILY_ACTIONS.create.map(a => renderTask(a, completedActions)).join('')}
     </div>
 
     ${isConnectDay ? `
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Connect (1-2 min)</h3>
-      ${DAILY_ACTIONS.connect.map(action => renderActionCard(action, completedActions)).join('')}
+    <!-- Step 3: Connect -->
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:#ecfdf5;color:#059669">Step 3</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">Connect</span>
+        <span class="section-time">1-2 min</span>
+      </div>
+      ${DAILY_ACTIONS.connect.map(a => renderTask(a, completedActions)).join('')}
     </div>` : ''}
 
     ${isGrowDay ? `
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Grow (1 min)</h3>
-      ${DAILY_ACTIONS.grow.map(action => renderActionCard(action, completedActions)).join('')}
+    <!-- Step 3: Grow -->
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:#fefce8;color:#ca8a04">Step 3</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">Grow</span>
+        <span class="section-time">1 min</span>
+      </div>
+      ${DAILY_ACTIONS.grow.map(a => renderTask(a, completedActions)).join('')}
     </div>` : ''}
 
-    <div class="mx-4 mt-4 mb-2">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">AI Tools</h3>
-      <div class="grid grid-cols-2 gap-2">
-        <button data-ai="comment" class="p-3 bg-white border border-gray-200 rounded-lg text-left hover:border-purple-200 transition">
-          <div class="text-sm font-medium">Comment</div>
-          <div class="text-xs text-gray-400">Get a comment idea</div>
+    <!-- AI Tools -->
+    <div style="margin:20px 14px 0">
+      <div class="section-header">
+        <span style="font-size:13px;font-weight:600;color:#1e293b">AI Assistant</span>
+        <span class="section-time">${usedCount} / ${tierLimit} used today</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button data-ai="comment" class="ai-btn">
+          <div class="ai-icon" style="background:#eff6ff;color:#2563eb">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1e293b">Comment</div>
+            <div style="font-size:11px;color:#9ca3af">From current post</div>
+          </div>
         </button>
-        <button data-ai="post" class="p-3 bg-white border border-gray-200 rounded-lg text-left hover:border-purple-200 transition">
-          <div class="text-sm font-medium">Draft Post</div>
-          <div class="text-xs text-gray-400">AI-powered draft</div>
+        <button data-ai="post" class="ai-btn">
+          <div class="ai-icon" style="background:#faf5ff;color:#7c3aed">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1e293b">Draft Post</div>
+            <div style="font-size:11px;color:#9ca3af">AI-powered draft</div>
+          </div>
         </button>
-        <button data-ai="ideas" class="p-3 bg-white border border-gray-200 rounded-lg text-left hover:border-purple-200 transition">
-          <div class="text-sm font-medium">Post Ideas</div>
-          <div class="text-xs text-gray-400">3 ideas for today</div>
+        <button data-ai="ideas" class="ai-btn">
+          <div class="ai-icon" style="background:#fefce8;color:#ca8a04">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-2 13.71V18h4v-2.29A7 7 0 0012 2z"/><path d="M10 21h4"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1e293b">Post Ideas</div>
+            <div style="font-size:11px;color:#9ca3af">3 ideas for today</div>
+          </div>
         </button>
-        <button data-ai="note" class="p-3 bg-white border border-gray-200 rounded-lg text-left hover:border-purple-200 transition">
-          <div class="text-sm font-medium">Connection Note</div>
-          <div class="text-xs text-gray-400">Personalized note</div>
+        <button data-ai="note" class="ai-btn">
+          <div class="ai-icon" style="background:#ecfdf5;color:#059669">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1e293b">Connect Note</div>
+            <div style="font-size:11px;color:#9ca3af">Personalized message</div>
+          </div>
         </button>
       </div>
     </div>
 
-    <div id="ai-panel" class="mx-4 mb-4 ${state.aiResult ? '' : 'hidden'}">
-      <div class="bg-white border border-purple-200 rounded-lg p-3">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-medium text-purple-600">${state.aiResultType || 'AI Suggestion'}</span>
-          <div class="flex gap-1">
-            <button id="btn-regenerate" class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="Try again">Retry</button>
-            <button id="btn-copy" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">Copy</button>
+    <!-- AI Result -->
+    ${state.aiLoading ? `
+    <div style="margin:12px 14px">
+      <div style="display:flex;align-items:center;gap:8px;padding:16px;background:#faf5ff;border-radius:12px">
+        <div style="width:20px;height:20px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+        <span style="font-size:13px;color:#6b7280">Generating...</span>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>` : ''}
+
+    ${state.aiResult ? `
+    <div class="ai-result" style="margin:12px 14px">
+      <div style="background:#fff;border:1px solid #e9e5f5;border-radius:12px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#faf5ff;border-bottom:1px solid #e9e5f5">
+          <span style="font-size:12px;font-weight:600;color:#7c3aed">${state.aiResultType || 'AI Suggestion'}</span>
+          <div style="display:flex;gap:6px">
+            <button id="btn-regenerate" style="font-size:11px;padding:4px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;color:#6b7280;cursor:pointer">Retry</button>
+            <button id="btn-copy" style="font-size:11px;padding:4px 10px;background:#7c3aed;border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:500">Copy</button>
           </div>
         </div>
-        <p class="text-sm text-gray-700 whitespace-pre-wrap">${state.aiResult || ''}</p>
-        <div class="mt-2 text-xs text-gray-400">${state.aiResult ? state.aiResult.length + ' chars' : ''}</div>
+        <div style="padding:14px;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${state.aiResult}</div>
+        <div style="padding:0 14px 10px;font-size:11px;color:#9ca3af">${state.aiResult.length} characters</div>
       </div>
-    </div>
-
-    ${state.aiLoading ? `<div class="mx-4 mb-4"><div class="flex items-center gap-2 text-sm text-gray-500"><div class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>Generating...</div></div>` : ''}
+    </div>` : ''}
 
     ${state.aiHistory.length > 0 ? `
-    <div class="mx-4 mb-4">
-      <button id="btn-toggle-history" class="text-xs text-gray-400 hover:text-gray-600">Recent suggestions (${state.aiHistory.length})</button>
-      <div id="ai-history" class="hidden mt-2 space-y-2">
+    <div style="margin:8px 14px 16px">
+      <button id="btn-toggle-history" style="background:none;border:none;font-size:11px;color:#9ca3af;cursor:pointer;padding:4px 0">Recent suggestions (${state.aiHistory.length})</button>
+      <div id="ai-history" style="display:none;margin-top:8px">
         ${state.aiHistory.map((h, i) => `
-          <div class="p-2 bg-gray-50 rounded-lg text-xs cursor-pointer hover:bg-gray-100" data-history="${i}">
-            <div class="font-medium text-gray-500">${h.type}</div>
-            <div class="text-gray-600 truncate">${h.text.substring(0, 80)}...</div>
+          <div data-history="${i}" style="padding:10px 12px;background:#fff;border:1px solid #f3f4f6;border-radius:8px;margin-bottom:4px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#e9e5f5'" onmouseout="this.style.borderColor='#f3f4f6'">
+            <div style="font-size:11px;font-weight:600;color:#9ca3af">${h.type}</div>
+            <div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.text.substring(0, 80)}...</div>
           </div>
         `).join('')}
       </div>
@@ -352,89 +426,106 @@ function renderDashboard() {
   </div>`;
 }
 
+function renderTask(action, completedActions) {
+  const done = completedActions.includes(action.id);
+  return `<div class="task-row ${done ? 'completed' : ''}" data-action="${action.id}">
+    <div class="task-check ${done ? 'done' : ''}">
+      <svg width="12" height="12" viewBox="0 0 20 20" fill="#fff"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+    </div>
+    <span class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${action.label}</span>
+  </div>`;
+}
+
 function renderSettings() {
   const user = state.user || {};
   const profile = user.profile || {};
 
-  return `<div class="pb-4">
-    <div class="p-4 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-      <div class="flex justify-between items-center">
-        <h1 class="text-lg font-bold">Settings</h1>
-        <button id="btn-back" class="text-white/80 hover:text-white text-sm">Back</button>
+  return `<div style="padding-bottom:16px">
+    <div style="padding:20px 16px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:18px;font-weight:700">Settings</span>
+        <button id="btn-back" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">Back</button>
       </div>
     </div>
 
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Profile</h3>
-      <div class="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-        ${user.picture_url ? `<img src="${user.picture_url}" class="w-12 h-12 rounded-full" />` : ''}
-        <div class="text-sm"><span class="text-gray-500">Name:</span> ${user.name || '-'}</div>
-        <div class="text-sm"><span class="text-gray-500">Email:</span> ${user.email || '-'}</div>
-        <div class="text-sm"><span class="text-gray-500">Headline:</span> ${profile.headline || '-'}</div>
-        <div class="text-sm"><span class="text-gray-500">Industry:</span> ${profile.industry || '-'}</div>
-        <div class="text-sm"><span class="text-gray-500">Topics:</span> ${profile.topics?.join(', ') || '-'}</div>
-        <button id="btn-edit-profile" class="text-xs text-purple-600 hover:underline">Edit profile</button>
+    <!-- Profile -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Profile</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          ${user.picture_url ? `<img src="${user.picture_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover" />` : `<div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;color:#9ca3af">${(user.name || '?')[0]}</div>`}
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1e293b">${user.name || '-'}</div>
+            <div style="font-size:12px;color:#9ca3af">${user.email || '-'}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.8">
+          <div><span style="color:#9ca3af">Headline:</span> ${profile.headline || '-'}</div>
+          <div><span style="color:#9ca3af">Industry:</span> ${profile.industry || '-'}</div>
+          <div><span style="color:#9ca3af">Topics:</span> ${profile.topics?.join(', ') || '-'}</div>
+        </div>
+        <button id="btn-edit-profile" style="margin-top:10px;background:none;border:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;font-weight:500">Edit profile</button>
       </div>
     </div>
 
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billing</h3>
-      <div class="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-        <div class="text-sm"><span class="text-gray-500">Plan:</span> <span class="font-medium capitalize">${user.tier || 'free'}</span></div>
-        <div class="text-sm"><span class="text-gray-500">AI limit:</span> ${TIER_LIMITS[user.tier || 'free']} suggestions/day</div>
-        <button id="btn-billing-portal" class="text-xs text-purple-600 hover:underline">Manage billing</button>
+    <!-- Billing -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Plan</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:14px;font-weight:600;color:#1e293b;text-transform:capitalize">${user.tier || 'free'}</span>
+          <span style="font-size:12px;color:#7c3aed;font-weight:500">${TIER_LIMITS[user.tier || 'free']} AI / day</span>
+        </div>
+        <button id="btn-billing-portal" style="background:none;border:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;font-weight:500">Manage billing</button>
       </div>
     </div>
 
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">BYOK (Bring Your Own Key)</h3>
-      <div class="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-        <p class="text-xs text-gray-500">Use your own Anthropic API key for unlimited AI suggestions. Key is sent per-request and never stored on our servers.</p>
-        <input type="password" id="byok-key" placeholder="sk-ant-..." value="" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs" />
-        <div class="flex gap-2">
-          <button id="btn-save-byok" class="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">Save Key</button>
-          <button id="btn-clear-byok" class="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear Key</button>
+    <!-- BYOK -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Bring Your Own Key</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
+        <p style="font-size:12px;color:#6b7280;margin:0 0 10px">Use your Anthropic API key for unlimited AI suggestions. Sent per-request, never stored on our servers.</p>
+        <input type="password" id="byok-key" placeholder="sk-ant-..." style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:8px" />
+        <div style="display:flex;gap:8px">
+          <button id="btn-save-byok" style="padding:6px 14px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500">Save</button>
+          <button id="btn-clear-byok" style="padding:6px 14px;background:#f3f4f6;color:#6b7280;border:none;border-radius:6px;font-size:12px;cursor:pointer">Clear</button>
         </div>
       </div>
     </div>
 
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Security</h3>
-      <div class="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-        <div class="text-sm"><span class="text-gray-500">2FA:</span> ${user.totp_enabled ? '<span class="text-green-600">Enabled</span>' : '<span class="text-gray-400">Disabled</span>'}</div>
-        <button id="btn-2fa-toggle" class="text-xs text-purple-600 hover:underline">${user.totp_enabled ? 'Disable 2FA' : 'Enable 2FA'}</button>
-      </div>
-    </div>
-
-    <div class="mx-4 mt-4">
-      <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Stats</h3>
-      <div class="bg-white border border-gray-200 rounded-lg p-3">
-        <div class="grid grid-cols-2 gap-2 text-center">
+    <!-- Security -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Security</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div class="text-xl font-bold text-purple-600">${state.streak?.current_streak || 0}</div>
-            <div class="text-xs text-gray-500">Current streak</div>
+            <div style="font-size:13px;color:#1e293b">Two-Factor Auth</div>
+            <div style="font-size:12px;color:${user.totp_enabled ? '#059669' : '#9ca3af'}">${user.totp_enabled ? 'Enabled' : 'Disabled'}</div>
           </div>
-          <div>
-            <div class="text-xl font-bold text-purple-600">${state.streak?.longest_streak || 0}</div>
-            <div class="text-xs text-gray-500">Longest streak</div>
-          </div>
+          <button id="btn-2fa-toggle" style="padding:6px 14px;background:${user.totp_enabled ? '#fef2f2' : '#faf5ff'};color:${user.totp_enabled ? '#dc2626' : '#7c3aed'};border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500">${user.totp_enabled ? 'Disable' : 'Enable'}</button>
         </div>
       </div>
     </div>
 
-    <div class="mx-4 mt-4 mb-4">
-      <button id="btn-logout" class="w-full py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition">Log Out</button>
+    <!-- Stats -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Stats</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#7c3aed">${state.streak?.current_streak || 0}</div>
+          <div style="font-size:11px;color:#9ca3af">Current streak</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#7c3aed">${state.streak?.longest_streak || 0}</div>
+          <div style="font-size:11px;color:#9ca3af">Longest streak</div>
+        </div>
+      </div>
     </div>
-  </div>`;
-}
 
-function renderActionCard(action, completedActions) {
-  const isCompleted = completedActions.includes(action.id);
-  return `<div class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg mb-2 cursor-pointer hover:border-purple-200 transition" data-action="${action.id}">
-    <div class="w-5 h-5 rounded-full border-2 ${isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300'} flex items-center justify-center flex-shrink-0">
-      ${isCompleted ? '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>' : ''}
+    <!-- Logout -->
+    <div style="margin:20px 14px 16px">
+      <button id="btn-logout" style="width:100%;padding:12px;background:#fef2f2;color:#dc2626;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer">Log Out</button>
     </div>
-    <span class="text-sm ${isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}">${action.label}</span>
   </div>`;
 }
 
@@ -456,8 +547,6 @@ function attachAuthHandlers() {
       state.oauthSessionId = sessionId;
       state.view = 'auth-polling';
       render();
-
-      // Start polling
       startOAuthPolling(sessionId);
     } catch (err) {
       state.error = err.message;
@@ -472,7 +561,7 @@ function startOAuthPolling(sessionId) {
   let attempts = 0;
   state.pollInterval = setInterval(async () => {
     attempts++;
-    if (attempts > 120) { // 2 min timeout
+    if (attempts > 120) {
       clearInterval(state.pollInterval);
       state.pollInterval = null;
       state.error = 'Login timed out. Try again.';
@@ -483,12 +572,11 @@ function startOAuthPolling(sessionId) {
 
     try {
       const result = await api.pollLinkedInLogin(sessionId);
-      if (!result) return; // Still pending
+      if (!result) return;
 
       clearInterval(state.pollInterval);
       state.pollInterval = null;
 
-      // Check if 2FA required
       if (result.requires2FA) {
         state.tempToken = result.tempToken;
         state.view = 'auth-2fa';
@@ -496,7 +584,6 @@ function startOAuthPolling(sessionId) {
         return;
       }
 
-      // Got tokens - complete login
       await api.completeLogin(result);
       const user = await api.getMe();
       state.user = user;
@@ -508,12 +595,10 @@ function startOAuthPolling(sessionId) {
         await loadDashboard();
       }
     } catch (err) {
-      // Don't stop polling on fetch errors, just keep trying
       console.warn('Poll error:', err.message);
     }
   }, 1000);
 
-  // Cancel button
   setTimeout(() => {
     document.getElementById('btn-cancel-login')?.addEventListener('click', () => {
       if (state.pollInterval) clearInterval(state.pollInterval);
@@ -562,10 +647,11 @@ function attachOnboardingHandlers() {
     const btn = document.getElementById('btn-parse-profile');
 
     try {
-      // Check if we're on a LinkedIn profile page
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id || !tab.url?.includes('linkedin.com/in/')) {
-        statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-amber-50 text-amber-700';
+        statusEl.style.display = 'block';
+        statusEl.style.background = '#fffbeb';
+        statusEl.style.color = '#92400e';
         statusEl.textContent = 'Go to your LinkedIn profile page first, then click this button.';
         return;
       }
@@ -577,21 +663,21 @@ function attachOnboardingHandlers() {
       const profile = response?.profile;
 
       if (!profile || !profile.headline) {
-        statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-amber-50 text-amber-700';
-        statusEl.textContent = 'Could not read profile. Make sure the page is fully loaded and try again.';
+        statusEl.style.display = 'block';
+        statusEl.style.background = '#fffbeb';
+        statusEl.style.color = '#92400e';
+        statusEl.textContent = 'Could not read profile. Make sure the page is fully loaded.';
         btn.disabled = false;
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
         return;
       }
 
-      // Fill in the fields
       const headlineInput = document.getElementById('ob-headline');
       const industryInput = document.getElementById('ob-industry');
       const topicsInput = document.getElementById('ob-topics');
 
       if (headlineInput && profile.headline) headlineInput.value = profile.headline;
 
-      // Derive industry from headline/experience/about
       if (industryInput) {
         const text = (profile.headline + ' ' + profile.experience.join(' ') + ' ' + profile.about).toLowerCase();
         const industries = ['Technology', 'Software', 'Finance', 'Marketing', 'Healthcare', 'Education', 'Consulting', 'Design', 'Sales', 'Engineering', 'Product', 'Data', 'AI', 'Crypto', 'Real Estate', 'Media', 'Legal', 'HR'];
@@ -599,17 +685,20 @@ function attachOnboardingHandlers() {
         industryInput.value = matched.length > 0 ? matched.slice(0, 2).join(', ') : '';
       }
 
-      // Use skills as topics
       if (topicsInput && profile.skills.length > 0) {
         topicsInput.value = profile.skills.slice(0, 5).join(', ');
       }
 
-      statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-green-50 text-green-700';
-      statusEl.textContent = 'Profile imported! Review the fields and click Start.';
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#f0fdf4';
+      statusEl.style.color = '#15803d';
+      statusEl.textContent = 'Profile imported! Review and click Start.';
       btn.disabled = false;
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
     } catch (err) {
-      statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-red-50 text-red-600';
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#fef2f2';
+      statusEl.style.color = '#dc2626';
       statusEl.textContent = 'Failed to parse. Make sure you\'re on your LinkedIn profile page.';
       btn.disabled = false;
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
@@ -678,13 +767,14 @@ function attachDashboardHandlers() {
       await navigator.clipboard.writeText(state.aiResult);
       const btn = document.getElementById('btn-copy');
       btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      btn.style.background = '#059669';
+      setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#7c3aed'; }, 1500);
     }
   });
 
   document.getElementById('btn-toggle-history')?.addEventListener('click', () => {
     const el = document.getElementById('ai-history');
-    if (el) el.classList.toggle('hidden');
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   });
 
   document.querySelectorAll('[data-history]').forEach(el => {
@@ -848,15 +938,15 @@ function attachSettingsHandlers() {
       try {
         const result = await api.setup2FA();
         const panel = document.createElement('div');
-        panel.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+        panel.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px';
         panel.innerHTML = `
-          <div class="bg-white rounded-xl p-4 max-w-xs w-full text-center">
-            <h3 class="font-bold mb-2">Scan QR Code</h3>
-            <p class="text-xs text-gray-500 mb-3">Scan with your authenticator app (Google Authenticator, Authy, etc.)</p>
-            <img src="${result.qrDataUrl}" class="mx-auto mb-3" width="200" />
-            <input type="text" id="verify-2fa-code" placeholder="Enter 6-digit code" maxlength="6" class="w-full px-3 py-2 border rounded-lg text-sm text-center mb-2" />
-            <button id="btn-verify-2fa" class="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Verify & Enable</button>
-            <button id="btn-cancel-2fa" class="w-full text-xs text-gray-500 mt-2">Cancel</button>
+          <div style="background:#fff;border-radius:16px;padding:20px;max-width:300px;width:100%;text-align:center">
+            <h3 style="font-size:16px;font-weight:700;margin:0 0 8px">Scan QR Code</h3>
+            <p style="font-size:12px;color:#6b7280;margin:0 0 14px">Scan with your authenticator app</p>
+            <img src="${result.qrDataUrl}" style="margin:0 auto 14px;display:block" width="200" />
+            <input type="text" id="verify-2fa-code" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:10px;font-size:16px;text-align:center;outline:none;box-sizing:border-box;margin-bottom:10px" />
+            <button id="btn-verify-2fa" style="width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Verify & Enable</button>
+            <button id="btn-cancel-2fa" style="display:block;margin:8px auto 0;background:none;border:none;color:#9ca3af;font-size:12px;cursor:pointer">Cancel</button>
           </div>`;
         document.body.appendChild(panel);
 
