@@ -908,7 +908,6 @@ function attachStoryBankHandlers() {
       const result = await api.getStoryBank();
       state.storyBank = result.entries;
       render();
-      attachStoryBankHandlers();
     } catch (err) {
       alert('Failed to save: ' + err.message);
     }
@@ -921,7 +920,6 @@ function attachStoryBankHandlers() {
         await api.deleteStory(id);
         state.storyBank = state.storyBank.filter(e => String(e.id) !== String(id));
         render();
-        attachStoryBankHandlers();
       } catch (err) {
         alert('Failed to delete: ' + err.message);
       }
