@@ -172,6 +172,12 @@ class WarmupAPI {
 
   // Post scoring
   async scorePost(draft) { return this.request('POST', '/api/ai/score-post', { draft }); }
+
+  // Story Bank
+  async getStoryBank() { return this.request('GET', '/api/me/story-bank'); }
+  async addStory(entryType, content, tags) { return this.request('POST', '/api/me/story-bank', { entry_type: entryType, content, tags }); }
+  async updateStory(id, data) { return this.request('PUT', `/api/me/story-bank/${id}`, data); }
+  async deleteStory(id) { return this.request('DELETE', `/api/me/story-bank/${id}`); }
 }
 
 export const api = new WarmupAPI();

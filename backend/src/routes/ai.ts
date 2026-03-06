@@ -8,6 +8,7 @@ import { SYSTEM_PROMPTS, wrapUserContent, addInjectionAnchor } from '../utils/pr
 import { TOKEN_LIMITS } from '../types/index.js';
 import { db } from '../db.js';
 import { AppError } from '../services/auth.js';
+import { buildUserContext, markStoriesUsed } from '../services/user-context-builder.js';
 
 const router = Router();
 
@@ -15,20 +16,13 @@ const router = Router();
 router.use(requireAuth);
 router.use(validateBYOKKey);
 
-async function getUserProfile(userId: string) {
-  const result = await db.query(
-    'SELECT headline, industry, topics FROM profiles WHERE user_id = $1',
-    [userId]
-  );
-  return result.rows[0] || { headline: '', industry: '', topics: [] };
-}
-
 router.post('/suggest-comment', async (req: Request, res: Response) => {
   try {
     const data = suggestCommentSchema.parse(req.body);
-    const profile = await getUserProfile(req.userId!);
     const byokKey = extractBYOKKey(req);
     const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';
+
+    const { contextText, storyIds } = await buildUserContext(req.userId!, data.post_text);
 
     const hasInjection = detectInjection(data.post_text);
     const userMessage = `${addInjectionAnchor(hasInjection)}${wrapUserContent(data.post_text, 'linkedin_post_content')}
@@ -41,7 +35,7 @@ Post author: ${data.author_name}
       userId: req.userId!,
       tier,
       byokKey,
-      systemPrompt: SYSTEM_PROMPTS['suggest-comment'](profile.headline, profile.topics),
+      systemPrompt: SYSTEM_PROMPTS['suggest-comment'](contextText),
       userMessage,
       maxTokens: TOKEN_LIMITS['suggest-comment'].maxOutput,
       suggestionType: 'comment',
@@ -53,8 +47,9 @@ Post author: ${data.author_name}
       return;
     }
 
+    await markStoriesUsed(storyIds);
     const usage = await checkUsageLimit(req.userId!, tier);
-    res.json({ suggestion: validated.text, usage });
+    res.json({ suggestion: validated.text, usage, stories_used: storyIds });
   } catch (err: unknown) {
     handleAIError(err, res);
   }
@@ -63,9 +58,10 @@ Post author: ${data.author_name}
 router.post('/draft-post', async (req: Request, res: Response) => {
   try {
     const data = draftPostSchema.parse(req.body);
-    const profile = await getUserProfile(req.userId!);
     const byokKey = extractBYOKKey(req);
     const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';
+
+    const { contextText, storyIds } = await buildUserContext(req.userId!, data.idea);
 
     const hasInjection = detectInjection(data.idea);
     const userMessage = `${addInjectionAnchor(hasInjection)}${wrapUserContent(data.idea, 'post_idea')}
@@ -78,7 +74,7 @@ Content type: ${data.content_type || 'general'}
       userId: req.userId!,
       tier,
       byokKey,
-      systemPrompt: SYSTEM_PROMPTS['draft-post'](profile.headline, profile.industry, profile.topics),
+      systemPrompt: SYSTEM_PROMPTS['draft-post'](contextText),
       userMessage,
       maxTokens: TOKEN_LIMITS['draft-post'].maxOutput,
       suggestionType: 'post',
@@ -90,8 +86,9 @@ Content type: ${data.content_type || 'general'}
       return;
     }
 
+    await markStoriesUsed(storyIds);
     const usage = await checkUsageLimit(req.userId!, tier);
-    res.json({ draft: validated.text, usage });
+    res.json({ draft: validated.text, usage, stories_used: storyIds });
   } catch (err: unknown) {
     handleAIError(err, res);
   }
@@ -100,9 +97,10 @@ Content type: ${data.content_type || 'general'}
 router.post('/post-ideas', async (req: Request, res: Response) => {
   try {
     const data = postIdeasSchema.parse(req.body);
-    const profile = await getUserProfile(req.userId!);
     const byokKey = extractBYOKKey(req);
     const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';
+
+    const { contextText, storyIds } = await buildUserContext(req.userId!);
 
     // Get recent topics
     const recentResult = await db.query(
@@ -117,13 +115,13 @@ router.post('/post-ideas', async (req: Request, res: Response) => {
     const feedContext = data.feed_context?.join('\n') || '';
     const userMessage = feedContext
       ? `Current trending topics from my feed:\n${wrapUserContent(feedContext, 'feed_context')}\n\n<task>Generate 3 post ideas for me.</task>`
-      : '<task>Generate 3 post ideas for me based on my profile.</task>';
+      : '<task>Generate 3 post ideas for me based on my profile and stories.</task>';
 
     const result = await makeAISuggestion({
       userId: req.userId!,
       tier,
       byokKey,
-      systemPrompt: SYSTEM_PROMPTS['post-ideas'](profile.headline, profile.industry, profile.topics, recentTopics, today),
+      systemPrompt: SYSTEM_PROMPTS['post-ideas'](contextText, recentTopics, today),
       userMessage,
       maxTokens: TOKEN_LIMITS['post-ideas'].maxOutput,
       suggestionType: 'post_idea',
@@ -135,7 +133,6 @@ router.post('/post-ideas', async (req: Request, res: Response) => {
       return;
     }
 
-    // Try to parse as JSON, fallback to raw text
     let ideas;
     try {
       ideas = JSON.parse(validated.text);
@@ -143,8 +140,9 @@ router.post('/post-ideas', async (req: Request, res: Response) => {
       ideas = [{ idea: validated.text, type: 'general', hook_preview: '' }];
     }
 
+    await markStoriesUsed(storyIds);
     const usage = await checkUsageLimit(req.userId!, tier);
-    res.json({ ideas, usage });
+    res.json({ ideas, usage, stories_used: storyIds });
   } catch (err: unknown) {
     handleAIError(err, res);
   }
@@ -153,9 +151,10 @@ router.post('/post-ideas', async (req: Request, res: Response) => {
 router.post('/connection-note', async (req: Request, res: Response) => {
   try {
     const data = connectionNoteSchema.parse(req.body);
-    const profile = await getUserProfile(req.userId!);
     const byokKey = extractBYOKKey(req);
     const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';
+
+    const { contextText, storyIds } = await buildUserContext(req.userId!);
 
     const userMessage = `Their name: ${data.target_name}
 Their headline: ${data.target_headline}
@@ -166,7 +165,7 @@ Their headline: ${data.target_headline}
       userId: req.userId!,
       tier,
       byokKey,
-      systemPrompt: SYSTEM_PROMPTS['connection-note'](profile.headline),
+      systemPrompt: SYSTEM_PROMPTS['connection-note'](contextText),
       userMessage,
       maxTokens: TOKEN_LIMITS['connection-note'].maxOutput,
       suggestionType: 'connection_note',
@@ -178,8 +177,9 @@ Their headline: ${data.target_headline}
       return;
     }
 
+    await markStoriesUsed(storyIds);
     const usage = await checkUsageLimit(req.userId!, tier);
-    res.json({ note: validated.text, usage });
+    res.json({ note: validated.text, usage, stories_used: storyIds });
   } catch (err: unknown) {
     handleAIError(err, res);
   }
@@ -212,10 +212,8 @@ router.post('/score-post', async (req: Request, res: Response) => {
       suggestionType: 'score_post',
     });
 
-    // Try to parse as JSON
     let score;
     try {
-      // Extract JSON from potential markdown code blocks
       const jsonMatch = result.text.match(/\{[\s\S]*\}/);
       score = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(result.text);
     } catch {

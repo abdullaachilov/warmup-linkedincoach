@@ -120,6 +120,29 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_id VARCHAR(100) UNIQUE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT;
 ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT TRUE;
+
+-- Story Bank: personal context fields on profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS work_situation TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS current_goals TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS hot_takes TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_reality TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS communication_style TEXT;
+
+-- Story Bank entries
+CREATE TABLE IF NOT EXISTS story_bank_entries (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  entry_type VARCHAR(50) NOT NULL,
+  content TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  used_count INTEGER DEFAULT 0,
+  last_used_at TIMESTAMPTZ,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_story_bank_user ON story_bank_entries(user_id, is_active, entry_type);
+CREATE INDEX IF NOT EXISTS idx_story_bank_usage ON story_bank_entries(user_id, used_count ASC);
 `;
 
 async function runMigrations() {

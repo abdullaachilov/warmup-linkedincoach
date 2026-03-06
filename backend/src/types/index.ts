@@ -25,9 +25,28 @@ export interface Profile {
   topics: string[];
   daily_minutes: number;
   timezone: string;
+  work_situation: string | null;
+  current_goals: string | null;
+  hot_takes: string | null;
+  daily_reality: string | null;
+  communication_style: string | null;
   created_at: Date;
   updated_at: Date;
 }
+
+export interface StoryBankEntry {
+  id: number;
+  user_id: string;
+  entry_type: string;
+  content: string;
+  tags: string[];
+  used_count: number;
+  last_used_at: Date | null;
+  is_active: boolean;
+  created_at: Date;
+}
+
+export const STORY_ENTRY_TYPES = ['win', 'lesson', 'opinion', 'project', 'milestone', 'daily_log'] as const;
 
 export interface Session {
   user_id: string;

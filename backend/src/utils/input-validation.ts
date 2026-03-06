@@ -56,6 +56,25 @@ export const profileUpdateSchema = z.object({
   topics: z.array(z.string().max(50)).max(10).optional(),
   daily_minutes: z.number().int().min(1).max(60).optional(),
   timezone: z.string().max(50).optional(),
+  work_situation: z.string().max(500).optional(),
+  current_goals: z.string().max(500).optional(),
+  hot_takes: z.string().max(500).optional(),
+  daily_reality: z.string().max(500).optional(),
+  communication_style: z.string().max(500).optional(),
+});
+
+const storyEntryTypes = ['win', 'lesson', 'opinion', 'project', 'milestone', 'daily_log'] as const;
+
+export const storyBankCreateSchema = z.object({
+  entry_type: z.enum(storyEntryTypes),
+  content: z.string().min(1).max(1000).transform(sanitizeText),
+  tags: z.array(z.string().max(50).transform(sanitizeText)).max(10).default([]),
+});
+
+export const storyBankUpdateSchema = z.object({
+  content: z.string().min(1).max(1000).transform(sanitizeText).optional(),
+  tags: z.array(z.string().max(50).transform(sanitizeText)).max(10).optional(),
+  entry_type: z.enum(storyEntryTypes).optional(),
 });
 
 export const sessionUpdateSchema = z.object({

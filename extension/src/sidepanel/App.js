@@ -3,7 +3,7 @@ import { CONTENT_CALENDAR, DAILY_ACTIONS, TIER_LIMITS } from '../shared/constant
 
 // State
 let state = {
-  view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, dashboard, settings
+  view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, onboarding-context, dashboard, settings, story-bank, daily-log
   user: null,
   session: null,
   streak: null,
@@ -20,6 +20,8 @@ let state = {
   pollInterval: null,
   feedContext: null, // { page, posts } from content script
   profileContext: null, // { profile } when on a profile page
+  storyBank: [], // story bank entries
+  storiesUsed: [], // story IDs used in last AI result
 };
 
 // Initialize
@@ -101,6 +103,12 @@ async function loadDashboard() {
     // Read current page context for personalized tasks
     await readPageContext();
 
+    // Load story bank
+    try {
+      const sbResult = await api.getStoryBank();
+      state.storyBank = sbResult.entries || [];
+    } catch { state.storyBank = []; }
+
     render();
   } catch (err) {
     state.error = err.message;
@@ -166,6 +174,10 @@ function render() {
       app.innerHTML = renderOnboarding();
       attachOnboardingHandlers();
       break;
+    case 'onboarding-context':
+      app.innerHTML = renderOnboardingContext();
+      attachOnboardingContextHandlers();
+      break;
     case 'dashboard':
       app.innerHTML = renderDashboard();
       attachDashboardHandlers();
@@ -173,6 +185,14 @@ function render() {
     case 'settings':
       app.innerHTML = renderSettings();
       attachSettingsHandlers();
+      break;
+    case 'story-bank':
+      app.innerHTML = renderStoryBank();
+      attachStoryBankHandlers();
+      break;
+    case 'daily-log':
+      app.innerHTML = renderDailyLog();
+      attachDailyLogHandlers();
       break;
     default:
       app.innerHTML = renderLoading();
@@ -510,6 +530,7 @@ function renderDashboard() {
         </div>
         <div style="padding:14px;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${state.aiResult}</div>
         <div style="padding:0 14px 10px;font-size:11px;color:#9ca3af">${state.aiResult.length} characters</div>
+        ${state.storiesUsed.length > 0 ? `<div style="padding:8px 14px 12px;border-top:1px solid #f3f4f6;font-size:11px;color:#6b7280">Based on ${state.storiesUsed.length} of your stories</div>` : ''}
       </div>
     </div>` : ''}
 
@@ -573,6 +594,30 @@ function renderSettings() {
       </div>
     </div>
 
+    <!-- Story Bank -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Story Bank</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
+        <p style="font-size:12px;color:#6b7280;margin:0 0 8px">Your real stories make AI posts sound like you.</p>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:#1e293b">${state.storyBank.length} stories saved</span>
+          <button id="btn-open-story-bank" style="padding:6px 14px;background:#faf5ff;color:#7c3aed;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500">Manage Stories</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice & Context -->
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Voice & Context</div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;font-size:12px;color:#6b7280;line-height:1.8">
+        <div><span style="color:#9ca3af">Work:</span> ${profile.work_situation || '-'}</div>
+        <div><span style="color:#9ca3af">Goals:</span> ${profile.current_goals || '-'}</div>
+        <div><span style="color:#9ca3af">Hot takes:</span> ${profile.hot_takes || '-'}</div>
+        <div><span style="color:#9ca3af">Style:</span> ${profile.communication_style || '-'}</div>
+        <button id="btn-edit-context" style="margin-top:8px;background:none;border:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;font-weight:500">Edit voice settings</button>
+      </div>
+    </div>
+
     <!-- Billing -->
     <div style="margin:16px 14px 0">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Plan</div>
@@ -632,6 +677,224 @@ function renderSettings() {
       <button id="btn-logout" style="width:100%;padding:12px;background:#fef2f2;color:#dc2626;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer">Log Out</button>
     </div>
   </div>`;
+}
+
+const STORY_ICONS = { win: '&#x1F3C6;', lesson: '&#x1F4A1;', opinion: '&#x1F525;', project: '&#x1F680;', milestone: '&#x1F4CD;', daily_log: '&#x1F4DD;' };
+
+function renderOnboardingContext() {
+  const profile = state.user?.profile || {};
+  return `<div style="padding:24px">
+    <h2 style="font-size:18px;font-weight:700;margin:0 0 4px">Make posts sound like YOU</h2>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 20px">This helps AI write in your voice, not generic LinkedIn-speak. All optional.</p>
+
+    <form id="context-form">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">What do you actually do day-to-day?</label>
+        <textarea id="ctx-work" rows="2" placeholder='e.g. "Solo contractor, code reviews, backend architecture for B2B SaaS clients"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.work_situation || ''}</textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">What are you working toward right now?</label>
+        <textarea id="ctx-goals" rows="2" placeholder='e.g. "Transitioning to US remote roles, shipping indie products"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.current_goals || ''}</textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">A hot take about your industry?</label>
+        <textarea id="ctx-takes" rows="2" placeholder='e.g. "Most developers are underusing AI tools and will regret it in 2 years"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.hot_takes || ''}</textarea>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">How do you like to communicate?</label>
+        <textarea id="ctx-style" rows="2" placeholder='e.g. "Direct, technical, dry humor, no corporate fluff"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.communication_style || ''}</textarea>
+      </div>
+      <button type="submit" style="width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Save & Start</button>
+    </form>
+    <button id="btn-skip-context" style="display:block;margin:12px auto 0;background:none;border:none;color:#9ca3af;font-size:13px;cursor:pointer">Skip for now</button>
+    <p style="text-align:center;font-size:11px;color:#d1d5db;margin-top:12px">You can always update this in Settings</p>
+  </div>`;
+}
+
+function attachOnboardingContextHandlers() {
+  document.getElementById('context-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api.updateProfile({
+        work_situation: document.getElementById('ctx-work')?.value || undefined,
+        current_goals: document.getElementById('ctx-goals')?.value || undefined,
+        hot_takes: document.getElementById('ctx-takes')?.value || undefined,
+        communication_style: document.getElementById('ctx-style')?.value || undefined,
+      });
+      state.user = await api.getMe();
+      await loadDashboard();
+    } catch (err) {
+      state.error = err.message;
+      render();
+    }
+  });
+
+  document.getElementById('btn-skip-context')?.addEventListener('click', async () => {
+    // If user already has a profile, go back to settings instead of dashboard
+    if (state.user?.profile?.headline) {
+      state.view = 'settings';
+      render();
+    } else {
+      await loadDashboard();
+    }
+  });
+}
+
+function renderStoryBank() {
+  const entries = state.storyBank || [];
+
+  return `<div style="padding-bottom:16px">
+    <div style="padding:20px 16px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:18px;font-weight:700">Story Bank</span>
+        <div style="display:flex;gap:8px">
+          <button id="btn-add-story" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">+ Add</button>
+          <button id="btn-sb-back" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">Back</button>
+        </div>
+      </div>
+      <p style="font-size:12px;opacity:0.7;margin-top:6px">Your stories make your posts authentic. ${entries.length} stories saved.</p>
+    </div>
+
+    <div id="story-add-panel" style="display:none;margin:12px 14px 0">
+      <div style="background:#fff;border:1px solid #e9e5f5;border-radius:12px;padding:14px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1e293b">Add a Story</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+          ${['win', 'lesson', 'opinion', 'project', 'milestone', 'daily_log'].map(t =>
+            `<button data-stype="${t}" class="stype-btn" style="padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;cursor:pointer;background:#fff;color:#374151">${STORY_ICONS[t]} ${t.replace('_', ' ')}</button>`
+          ).join('')}
+        </div>
+        <textarea id="story-content" rows="3" maxlength="1000" placeholder="1-3 sentences. Be specific - numbers, tools, timelines make better posts." style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;margin-bottom:8px"></textarea>
+        <input id="story-tags" type="text" placeholder="Tags: ai, career, typescript (comma separated)" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:10px" />
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="btn-cancel-story" style="padding:6px 14px;background:#f3f4f6;color:#6b7280;border:none;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
+          <button id="btn-save-story" style="padding:6px 14px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:12px 14px 0">
+      ${entries.length === 0 ? `
+        <div style="text-align:center;padding:32px 16px;color:#9ca3af">
+          <div style="font-size:14px;margin-bottom:4px">No stories yet</div>
+          <div style="font-size:12px">Add your wins, lessons, and opinions to make AI posts personal.</div>
+        </div>
+      ` : entries.map(e => `
+        <div style="background:#fff;border:1px solid #f3f4f6;border-radius:10px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:600;text-transform:uppercase;color:#7c3aed">${STORY_ICONS[e.entry_type] || ''} ${e.entry_type.replace('_', ' ')}</span>
+            <div style="display:flex;gap:6px">
+              <button data-del-story="${e.id}" style="background:none;border:none;font-size:16px;color:#9ca3af;cursor:pointer;padding:0;line-height:1" title="Remove">x</button>
+            </div>
+          </div>
+          <div style="font-size:13px;color:#374151;line-height:1.5">${e.content}</div>
+          ${e.tags?.length > 0 ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${e.tags.map(t => `<span style="font-size:10px;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#6b7280">${t}</span>`).join('')}</div>` : ''}
+          <div style="margin-top:6px;font-size:10px;color:#d1d5db">Used in ${e.used_count || 0} posts</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function attachStoryBankHandlers() {
+  let selectedType = 'win';
+
+  document.getElementById('btn-sb-back')?.addEventListener('click', () => {
+    state.view = 'settings';
+    render();
+  });
+
+  document.getElementById('btn-add-story')?.addEventListener('click', () => {
+    const panel = document.getElementById('story-add-panel');
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+
+  document.getElementById('btn-cancel-story')?.addEventListener('click', () => {
+    const panel = document.getElementById('story-add-panel');
+    if (panel) panel.style.display = 'none';
+  });
+
+  document.querySelectorAll('.stype-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedType = btn.dataset.stype;
+      document.querySelectorAll('.stype-btn').forEach(b => {
+        b.style.background = b.dataset.stype === selectedType ? '#7c3aed' : '#fff';
+        b.style.color = b.dataset.stype === selectedType ? '#fff' : '#374151';
+        b.style.borderColor = b.dataset.stype === selectedType ? '#7c3aed' : '#e5e7eb';
+      });
+    });
+  });
+
+  document.getElementById('btn-save-story')?.addEventListener('click', async () => {
+    const content = document.getElementById('story-content')?.value?.trim();
+    const tagsStr = document.getElementById('story-tags')?.value || '';
+    const tags = tagsStr.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+
+    if (!content) { alert('Please enter your story.'); return; }
+
+    try {
+      await api.addStory(selectedType, content, tags);
+      const result = await api.getStoryBank();
+      state.storyBank = result.entries;
+      render();
+      attachStoryBankHandlers();
+    } catch (err) {
+      alert('Failed to save: ' + err.message);
+    }
+  });
+
+  document.querySelectorAll('[data-del-story]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.delStory;
+      try {
+        await api.deleteStory(id);
+        state.storyBank = state.storyBank.filter(e => String(e.id) !== String(id));
+        render();
+        attachStoryBankHandlers();
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
+      }
+    });
+  });
+}
+
+function renderDailyLog() {
+  const streakCount = state.streak?.current_streak || 0;
+  return `<div style="padding:24px;text-align:center">
+    <div style="font-size:48px;margin-bottom:8px">&#x2705;</div>
+    <h2 style="font-size:18px;font-weight:700;margin:0 0 4px">Session complete!</h2>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 20px">Streak: ${streakCount} day${streakCount !== 1 ? 's' : ''}</p>
+
+    <div style="text-align:left">
+      <p style="font-size:13px;color:#374151;margin:0 0 8px;font-weight:500">Anything interesting happen today you might post about?</p>
+      <textarea id="daily-log-text" rows="3" placeholder='e.g. "Fixed a gnarly race condition" or "Got 3x impressions by posting at 9am"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button id="btn-skip-log" style="flex:1;padding:12px;background:#f3f4f6;color:#6b7280;border:none;border-radius:10px;font-size:14px;cursor:pointer">Skip</button>
+      <button id="btn-save-log" style="flex:1;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Save to Stories</button>
+    </div>
+  </div>`;
+}
+
+function attachDailyLogHandlers() {
+  document.getElementById('btn-skip-log')?.addEventListener('click', () => {
+    state.view = 'dashboard';
+    render();
+  });
+
+  document.getElementById('btn-save-log')?.addEventListener('click', async () => {
+    const text = document.getElementById('daily-log-text')?.value?.trim();
+    if (!text) { state.view = 'dashboard'; render(); return; }
+    try {
+      await api.addStory('daily_log', text, []);
+      const result = await api.getStoryBank();
+      state.storyBank = result.entries;
+    } catch (err) {
+      console.error('Failed to save daily log:', err);
+    }
+    state.view = 'dashboard';
+    render();
+  });
 }
 
 function saveToHistory(type, text) {
@@ -819,7 +1082,9 @@ function attachOnboardingHandlers() {
     try {
       await api.updateProfile({ headline, industry, topics });
       state.user = await api.getMe();
-      await loadDashboard();
+      // Go to personal context step
+      state.view = 'onboarding-context';
+      render();
     } catch (err) {
       state.error = err.message;
       render();
@@ -861,6 +1126,19 @@ function attachDashboardHandlers() {
       if (!wasCompleted && actionId === 'publish_post' && !state.goldenWindowStart) {
         state.goldenWindowStart = Date.now();
         chrome.runtime.sendMessage({ type: 'START_GOLDEN_WINDOW' }).catch(() => {});
+      }
+
+      // Show daily log prompt when all tasks completed
+      const totalActions = state.session?.total_actions || 10;
+      if (!wasCompleted && updated.length >= totalActions) {
+        const { dailyLogShown } = await chrome.storage.local.get('dailyLogShown');
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (dailyLogShown !== todayStr) {
+          await chrome.storage.local.set({ dailyLogShown: todayStr });
+          state.view = 'daily-log';
+          render();
+          return;
+        }
       }
 
       render();
@@ -945,6 +1223,7 @@ async function handleAITool(type, params) {
         state.aiResult = result.suggestion;
         state.aiResultType = 'Comment Suggestion';
         state.usage = result.usage;
+        state.storiesUsed = result.stories_used || [];
         saveToHistory('Comment', result.suggestion);
         break;
       }
@@ -956,6 +1235,7 @@ async function handleAITool(type, params) {
         state.aiResult = result.draft;
         state.aiResultType = 'Post Draft';
         state.usage = result.usage;
+        state.storiesUsed = result.stories_used || [];
         saveToHistory('Post Draft', result.draft);
         break;
       }
@@ -969,6 +1249,7 @@ async function handleAITool(type, params) {
         state.aiResult = formatted;
         state.aiResultType = 'Post Ideas';
         state.usage = result.usage;
+        state.storiesUsed = result.stories_used || [];
         saveToHistory('Post Ideas', formatted);
         break;
       }
@@ -989,6 +1270,7 @@ async function handleAITool(type, params) {
         state.aiResult = result.note;
         state.aiResultType = 'Connection Note';
         state.usage = result.usage;
+        state.storiesUsed = result.stories_used || [];
         saveToHistory('Connection Note', result.note);
         break;
       }
@@ -1009,12 +1291,22 @@ function attachSettingsHandlers() {
 
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await api.logout();
-    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null };
+    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [] };
     render();
   });
 
   document.getElementById('btn-edit-profile')?.addEventListener('click', () => {
     state.view = 'onboarding';
+    render();
+  });
+
+  document.getElementById('btn-open-story-bank')?.addEventListener('click', () => {
+    state.view = 'story-bank';
+    render();
+  });
+
+  document.getElementById('btn-edit-context')?.addEventListener('click', () => {
+    state.view = 'onboarding-context';
     render();
   });
 
