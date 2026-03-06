@@ -64,6 +64,53 @@ const getPageContext = () => {
   return 'other';
 };
 
+// Detect when user focuses on a comment box - capture the parent post context
+(function setupCommentFocusTracking() {
+  // Read post data from the closest post ancestor
+  function readPostFromElement(el) {
+    const post = el.closest('[data-urn]');
+    if (!post) return null;
+    const authorEl = post.querySelector('.update-components-actor__name');
+    const textEl = post.querySelector('.feed-shared-update-v2__description');
+    const author = authorEl?.textContent?.trim() || 'Unknown';
+    const text = textEl?.textContent?.trim()?.substring(0, 500) || '';
+    if (!text) return null;
+    return { author: author.split('\n')[0].trim(), text };
+  }
+
+  // LinkedIn comment buttons have aria-label "Comment" or similar
+  // When clicked, LinkedIn opens a comment box under that post
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    // "comment" button or "add a comment" - the button that opens/focuses the comment input
+    if (ariaLabel.includes('comment') && !ariaLabel.includes('comments')) {
+      const post = readPostFromElement(btn);
+      if (post) {
+        chrome.runtime.sendMessage({ type: 'FOCUSED_POST', post }).catch(() => {});
+      }
+    }
+  }, true);
+
+  // Also detect focus on the actual comment text input/contenteditable
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    // LinkedIn comment inputs: contenteditable divs with role="textbox" or specific classes
+    const isCommentInput = (
+      el.getAttribute('role') === 'textbox' ||
+      el.classList.contains('ql-editor') ||
+      el.closest('.comments-comment-box__form, .comments-comment-texteditor')
+    );
+    if (isCommentInput) {
+      const post = readPostFromElement(el);
+      if (post) {
+        chrome.runtime.sendMessage({ type: 'FOCUSED_POST', post }).catch(() => {});
+      }
+    }
+  }, true);
+})();
+
 // Auto-detect likes and reactions
 (function setupInteractionTracking() {
   // LinkedIn uses these buttons for like/react

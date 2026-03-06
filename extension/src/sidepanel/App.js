@@ -24,6 +24,7 @@ let state = {
   storiesUsed: [], // story IDs used in last AI result
   likeCount: 0, // auto-tracked likes this session
   reactCount: 0, // auto-tracked non-like reactions this session
+  focusedPost: null, // { author, text } - the post user is commenting on
 };
 
 // Initialize
@@ -92,8 +93,17 @@ async function autoCompleteTask(actionId) {
   }
 }
 
-// Listen for like/react events forwarded from content script via service worker
+// Listen for events forwarded from content script via service worker
 chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'FOCUSED_POST' && msg.post) {
+    state.focusedPost = msg.post;
+    // Update the comment button label without full re-render
+    const commentSub = document.querySelector('[data-ai="comment"] div > div:last-child');
+    if (commentSub) {
+      commentSub.textContent = 'For ' + msg.post.author;
+      commentSub.style.color = '#2563eb';
+    }
+  }
   if (msg.type === 'USER_LIKED_POST') {
     state.likeCount++;
     saveInteractionCounts();
@@ -557,7 +567,7 @@ function renderDashboard() {
           </div>
           <div>
             <div style="font-size:13px;font-weight:600;color:#1e293b">Comment</div>
-            <div style="font-size:11px;color:#9ca3af">${state.feedContext?.posts?.[0] ? 'For ' + state.feedContext.posts[0].author.split('\n')[0].trim() : 'From current post'}</div>
+            <div style="font-size:11px;color:${state.focusedPost ? '#2563eb' : '#9ca3af'}">${state.focusedPost ? 'For ' + state.focusedPost.author : state.feedContext?.posts?.[0] ? 'For ' + state.feedContext.posts[0].author.split('\n')[0].trim() : 'Click comment on a post'}</div>
           </div>
         </button>
         <button data-ai="post" class="ai-btn">
@@ -1311,24 +1321,32 @@ async function handleAITool(type, params) {
     let result;
     switch (type) {
       case 'comment': {
-        let postText = params?.postText || 'A recent LinkedIn post about industry trends';
-        let authorName = params?.authorName || 'A professional';
-        if (!params) {
-          try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) {
-              const context = await chrome.tabs.sendMessage(tab.id, { type: 'GET_FEED_CONTEXT' });
-              if (context?.posts?.[0]) {
-                postText = context.posts[0].text;
-                authorName = context.posts[0].author;
+        let postText = params?.postText;
+        let authorName = params?.authorName;
+        if (!postText) {
+          // Priority: focused post (user clicked comment) > first feed post > fallback
+          if (state.focusedPost?.text) {
+            postText = state.focusedPost.text;
+            authorName = state.focusedPost.author;
+          } else {
+            try {
+              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (tab?.id) {
+                const context = await chrome.tabs.sendMessage(tab.id, { type: 'GET_FEED_CONTEXT' });
+                if (context?.posts?.[0]) {
+                  postText = context.posts[0].text;
+                  authorName = context.posts[0].author;
+                }
               }
-            }
-          } catch {}
+            } catch {}
+          }
+          if (!postText) postText = 'A recent LinkedIn post about industry trends';
+          if (!authorName) authorName = 'A professional';
         }
         lastAICall = { type: 'comment', params: { postText, authorName } };
         result = await api.suggestComment(postText, authorName);
         state.aiResult = result.suggestion;
-        state.aiResultType = 'Comment Suggestion';
+        state.aiResultType = authorName && authorName !== 'A professional' ? `Comment for ${authorName.split('\n')[0].trim()}` : 'Comment Suggestion';
         state.usage = result.usage;
         state.storiesUsed = result.stories_used || [];
         saveToHistory('Comment', result.suggestion);
@@ -1398,7 +1416,7 @@ function attachSettingsHandlers() {
 
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await api.logout();
-    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [], likeCount: 0, reactCount: 0 };
+    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [], likeCount: 0, reactCount: 0, focusedPost: null };
     render();
   });
 
