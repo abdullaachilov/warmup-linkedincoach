@@ -10,7 +10,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ci": "vitest run --coverage --reporter=junit --outputFile=test-results.xml",
-    "db:migrate": "tsx src/migrations/run.ts",
+    "db:migrate": "node --env-file=.env --import tsx/esm src/migrations/run.ts",
     "db:migrate:test": "tsx src/migrations/run.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"

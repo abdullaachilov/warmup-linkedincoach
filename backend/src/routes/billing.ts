@@ -3,11 +3,27 @@ import Stripe from 'stripe';
 import { requireAuth } from '../middleware/auth.js';
 import { db } from '../db.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2025-01-27.acacia' as any });
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeKey && !stripeKey.startsWith('sk_test_xxx')
+  ? new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' as any })
+  : null;
+
+if (!stripe) {
+  console.warn('Stripe not configured - billing endpoints will return errors');
+}
 
 const router = Router();
 
+function requireStripe(_req: Request, res: Response): boolean {
+  if (!stripe) {
+    res.status(503).json({ error: 'Billing not configured.' });
+    return false;
+  }
+  return true;
+}
+
 router.post('/checkout', requireAuth, async (req: Request, res: Response) => {
+  if (!requireStripe(req, res)) return;
   try {
     const { priceId } = req.body;
     if (!priceId) {
@@ -15,7 +31,6 @@ router.post('/checkout', requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    // Get or create Stripe customer
     const userResult = await db.query('SELECT email, stripe_customer_id FROM users WHERE id = $1', [req.userId]);
     const user = userResult.rows[0];
     if (!user) {
@@ -25,15 +40,14 @@ router.post('/checkout', requireAuth, async (req: Request, res: Response) => {
 
     let customerId = user.stripe_customer_id;
     if (!customerId) {
-      const customer = await stripe.customers.create({ email: user.email, metadata: { userId: req.userId! } });
+      const customer = await stripe!.customers.create({ email: user.email, metadata: { userId: req.userId! } });
       customerId = customer.id;
       await db.query('UPDATE users SET stripe_customer_id = $1 WHERE id = $2', [customerId, req.userId]);
     }
 
-    // Determine if one-time (BYOK) or subscription
     const isBYOK = priceId === process.env.STRIPE_BYOK_PRICE_ID;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await stripe!.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       mode: isBYOK ? 'payment' : 'subscription',
@@ -51,6 +65,7 @@ router.post('/checkout', requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post('/portal', requireAuth, async (req: Request, res: Response) => {
+  if (!requireStripe(req, res)) return;
   try {
     const userResult = await db.query('SELECT stripe_customer_id FROM users WHERE id = $1', [req.userId]);
     const user = userResult.rows[0];
@@ -59,7 +74,7 @@ router.post('/portal', requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await stripe!.billingPortal.sessions.create({
       customer: user.stripe_customer_id,
       return_url: `${process.env.APP_URL || 'https://networkwarmup.com'}/settings`,
     });
@@ -72,6 +87,7 @@ router.post('/portal', requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post('/webhook', async (req: Request, res: Response) => {
+  if (!requireStripe(req, res)) return;
   const sig = req.headers['stripe-signature'] as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -83,7 +99,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    event = stripe!.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
     console.error('Webhook signature verification failed');
     res.status(400).json({ error: 'Invalid signature.' });
@@ -91,7 +107,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
   }
 
   try {
-    // Idempotency: skip already-processed events
     const existingEvent = await db.query('SELECT event_id FROM webhook_events WHERE event_id = $1', [event.id]);
     if (existingEvent.rows.length > 0) {
       res.json({ received: true, duplicate: true });
@@ -104,7 +119,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
         const userId = session.metadata?.userId;
         if (!userId) break;
 
-        // Validate customer matches our DB
         if (session.customer) {
           const customerCheck = await db.query(
             'SELECT id FROM users WHERE id = $1 AND stripe_customer_id = $2',
@@ -117,14 +131,12 @@ router.post('/webhook', async (req: Request, res: Response) => {
         }
 
         if (session.mode === 'payment') {
-          // BYOK one-time purchase
           await db.query(
             'UPDATE users SET tier = $1, byok_enabled = TRUE, updated_at = NOW() WHERE id = $2',
             ['byok', userId]
           );
         } else if (session.subscription) {
-          // Subscription
-          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          const subscription = await stripe!.subscriptions.retrieve(session.subscription as string);
           const priceId = subscription.items.data[0]?.price.id;
           let tier = 'starter';
           if (priceId === process.env.STRIPE_PRO_PRICE_ID) tier = 'pro';
@@ -166,12 +178,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
         console.warn(`Payment failed for customer ${customerId}`);
-        // Grace period - don't downgrade immediately
         break;
       }
     }
 
-    // Record processed event for idempotency
     await db.query(
       'INSERT INTO webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [event.id, event.type]

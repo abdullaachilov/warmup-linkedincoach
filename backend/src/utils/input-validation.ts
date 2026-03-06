@@ -83,3 +83,23 @@ export const sessionUpdateSchema = z.object({
   post_published: z.boolean().optional(),
   connections_sent: z.number().int().min(0).max(20).optional(),
 });
+
+export const sessionGenerateSchema = z.object({
+  feed_posts: z.array(z.object({
+    author: z.string().max(200).transform(sanitizeText),
+    text: z.string().max(500).transform(sanitizeText),
+  })).max(10).optional(),
+});
+
+export const actionCompleteSchema = z.object({
+  action_id: z.string().min(1).max(100),
+  completed: z.boolean(),
+});
+
+export const postPerformanceSchema = z.object({
+  content_preview: z.string().max(500).transform(sanitizeText).optional(),
+  impressions: z.number().int().min(0).optional(),
+  reactions: z.number().int().min(0).optional(),
+  comments_count: z.number().int().min(0).optional(),
+  shares: z.number().int().min(0).optional(),
+});

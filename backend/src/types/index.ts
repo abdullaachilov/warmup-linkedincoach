@@ -106,4 +106,47 @@ export const TOKEN_LIMITS: Record<string, { maxOutput: number; maxInput: number 
   'post-ideas': { maxOutput: 500, maxInput: 2000 },
   'connection-note': { maxOutput: 100, maxInput: 1000 },
   'score-post': { maxOutput: 600, maxInput: 5000 },
+  'generate-session': { maxOutput: 1200, maxInput: 3000 },
 };
+
+export interface SessionAction {
+  id: string;
+  category: 'engage' | 'create' | 'connect' | 'grow' | 'reflect';
+  label: string;
+  sublabel?: string;
+  why?: string;
+  completed: boolean;
+  ai_type?: 'comment' | 'post' | 'ideas' | 'note';
+  context?: Record<string, string>;
+}
+
+export interface DailySessionData {
+  theme: string;
+  actions: SessionAction[];
+  estimated_minutes: number;
+}
+
+export interface DailySession {
+  id: number;
+  user_id: string;
+  date: string;
+  session_data: DailySessionData;
+  context_snapshot: Record<string, unknown> | null;
+  actions_completed: number;
+  actions_total: number;
+  completed_at: Date | null;
+  generation_tokens_used: number | null;
+  created_at: Date;
+}
+
+export interface WeeklySnapshot {
+  id: number;
+  user_id: string;
+  week_start: string;
+  sessions_completed: number;
+  total_actions_completed: number;
+  ai_suggestions_used: number;
+  stories_added: number;
+  snapshot_data: Record<string, unknown> | null;
+  created_at: Date;
+}

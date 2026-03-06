@@ -18,27 +18,10 @@ export const CONTENT_CALENDAR = {
   6: { type: 'casual', label: 'Behind-the-scenes', emoji: '🌤️' },
 };
 
-export const DAILY_ACTIONS = {
-  engage: [
-    { id: 'comment_1', label: 'Comment on post #1', category: 'engage' },
-    { id: 'comment_2', label: 'Comment on post #2', category: 'engage' },
-    { id: 'comment_3', label: 'Comment on post #3', category: 'engage' },
-    { id: 'like_posts', label: 'Like 5-8 posts', category: 'engage' },
-    { id: 'react_posts', label: 'React (non-like) to 2 posts', category: 'engage' },
-  ],
-  create: [
-    { id: 'draft_post', label: 'Draft a post', category: 'create' },
-    { id: 'publish_post', label: 'Publish your post', category: 'create' },
-  ],
-  connect: [
-    { id: 'send_connections', label: 'Send 3-5 connection requests', category: 'connect' },
-    { id: 'accept_pending', label: 'Accept pending requests', category: 'connect' },
-  ],
-  grow: [
-    { id: 'follow_creators', label: 'Follow 1-2 creators/newsletters', category: 'grow' },
-    { id: 'profile_viewers', label: 'Check profile viewers & connect', category: 'grow' },
-  ],
-  reflect: [
-    { id: 'add_daily_log', label: 'Add a daily log to Story Bank', category: 'reflect' },
-  ],
+export const CATEGORY_STYLES = {
+  engage: { badge: 'Engage', bg: '#eff6ff', color: '#2563eb' },
+  create: { badge: 'Create', bg: '#faf5ff', color: '#7c3aed' },
+  connect: { badge: 'Connect', bg: '#ecfdf5', color: '#059669' },
+  grow: { badge: 'Grow', bg: '#fefce8', color: '#ca8a04' },
+  reflect: { badge: 'Reflect', bg: '#fdf2f8', color: '#be185d' },
 };

@@ -143,6 +143,55 @@ CREATE TABLE IF NOT EXISTS story_bank_entries (
 
 CREATE INDEX IF NOT EXISTS idx_story_bank_user ON story_bank_entries(user_id, is_active, entry_type);
 CREATE INDEX IF NOT EXISTS idx_story_bank_usage ON story_bank_entries(user_id, used_count ASC);
+
+-- Dynamic AI Sessions
+CREATE TABLE IF NOT EXISTS daily_sessions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  session_data JSONB NOT NULL,
+  context_snapshot JSONB,
+  actions_completed INTEGER DEFAULT 0,
+  actions_total INTEGER DEFAULT 0,
+  completed_at TIMESTAMPTZ,
+  generation_tokens_used INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_sessions_user_date ON daily_sessions(user_id, date DESC);
+
+CREATE TABLE IF NOT EXISTS weekly_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL,
+  sessions_completed INTEGER DEFAULT 0,
+  total_actions_completed INTEGER DEFAULT 0,
+  ai_suggestions_used INTEGER DEFAULT 0,
+  stories_added INTEGER DEFAULT 0,
+  snapshot_data JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, week_start)
+);
+
+CREATE TABLE IF NOT EXISTS post_performance (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  posted_at DATE NOT NULL,
+  content_preview TEXT,
+  impressions INTEGER,
+  reactions INTEGER,
+  comments_count INTEGER,
+  shares INTEGER,
+  reported_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_performance_user ON post_performance(user_id, posted_at DESC);
+
+-- Retention: last_active and days_inactive tracking
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS re_engagement_sent_at TIMESTAMPTZ;
 `;
 
 async function runMigrations() {

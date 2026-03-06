@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: warmup
+      POSTGRES_PASSWORD: warmup
+      POSTGRES_DB: warmup
+    volumes:
+      - warmup_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warmup"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  warmup_pg_data:

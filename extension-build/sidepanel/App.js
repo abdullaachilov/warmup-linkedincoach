@@ -1,5 +1,5 @@
 import { api } from './api/client.js';
-import { CONTENT_CALENDAR, DAILY_ACTIONS, TIER_LIMITS } from '../shared/constants.js';
+import { CONTENT_CALENDAR, TIER_LIMITS, CATEGORY_STYLES } from '../shared/constants.js';
 
 // Escape HTML to prevent XSS in innerHTML
 function esc(str) {
@@ -9,9 +9,9 @@ function esc(str) {
 
 // State
 let state = {
-  view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, onboarding-context, dashboard, settings, story-bank, daily-log
+  view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, onboarding-context, dashboard, settings, story-bank, daily-log, weekly
   user: null,
-  session: null,
+  session: null, // dynamic session from API
   streak: null,
   usage: null,
   error: null,
@@ -31,6 +31,8 @@ let state = {
   likeCount: 0, // auto-tracked likes this session
   reactCount: 0, // auto-tracked non-like reactions this session
   focusedPost: null, // { author, text } - the post user is commenting on
+  sessionGenerating: false, // true while AI session is being generated
+  weeklyStats: null, // weekly progress data
 };
 
 // Initialize
@@ -83,31 +85,26 @@ function saveInteractionCounts() {
   });
 }
 
-async function autoCompleteTask(actionId) {
-  if (!state.session) return;
-  const current = state.session.completed_actions || [];
-  if (current.includes(actionId)) return;
-  const updated = [...current, actionId];
-  state.session.completed_actions = updated;
-  const totalActions = state.session?.total_actions || 10;
-  if (updated.length >= totalActions) {
-    chrome.runtime.sendMessage({ type: 'TASKS_COMPLETED' }).catch(() => {});
-  }
+async function autoCompleteAction(actionId) {
+  if (!state.session?.session_data?.actions) return;
+  const action = state.session.session_data.actions.find(a => a.id === actionId);
+  if (!action || action.completed) return;
+
+  action.completed = true;
+  state.session.actions_completed = state.session.session_data.actions.filter(a => a.completed).length;
   render();
-  chrome.storage.local.set({ pendingSession: { completed_actions: updated } });
+
   try {
-    await api.updateToday({ completed_actions: updated });
-    chrome.storage.local.remove('pendingSession');
+    await api.completeAction(actionId, true);
   } catch (err) {
     console.error('Failed to save auto-complete:', err);
   }
 }
 
-// Listen for events forwarded from content script via service worker
+// Listen for events from content script
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'FOCUSED_POST' && msg.post) {
     state.focusedPost = msg.post;
-    // Update the comment button label without full re-render
     const commentSub = document.querySelector('[data-ai="comment"] div > div:last-child');
     if (commentSub) {
       commentSub.textContent = 'For ' + msg.post.author;
@@ -117,13 +114,24 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'USER_LIKED_POST') {
     state.likeCount++;
     saveInteractionCounts();
-    if (state.likeCount >= 5) autoCompleteTask('like_posts');
+    // Auto-complete like-related engage actions
+    if (state.likeCount >= 5) {
+      const likeAction = state.session?.session_data?.actions?.find(a =>
+        a.category === 'engage' && !a.completed && a.label.toLowerCase().includes('like')
+      );
+      if (likeAction) autoCompleteAction(likeAction.id);
+    }
     render();
   }
   if (msg.type === 'USER_REACTED_POST') {
     state.reactCount++;
     saveInteractionCounts();
-    if (state.reactCount >= 2) autoCompleteTask('react_posts');
+    if (state.reactCount >= 2) {
+      const reactAction = state.session?.session_data?.actions?.find(a =>
+        a.category === 'engage' && !a.completed && a.label.toLowerCase().includes('react')
+      );
+      if (reactAction) autoCompleteAction(reactAction.id);
+    }
     render();
   }
   if (msg.type === 'DAILY_RESET') {
@@ -193,6 +201,30 @@ async function loadDashboard() {
     state.error = err.message;
     render();
   }
+}
+
+async function generateDynamicSession() {
+  if (state.sessionGenerating) return;
+  state.sessionGenerating = true;
+  render();
+
+  try {
+    // Gather feed posts for context
+    await readPageContext();
+    const feedPosts = state.feedContext?.posts?.slice(0, 5)?.map(p => ({
+      author: p.author?.split('\n')[0]?.trim() || 'Unknown',
+      text: (p.text || '').substring(0, 300),
+    })) || [];
+
+    const session = await api.generateSession(feedPosts.length > 0 ? feedPosts : undefined);
+    state.session = session;
+  } catch (err) {
+    console.error('Session generation failed:', err);
+    state.error = 'Failed to generate session. Using default.';
+  }
+
+  state.sessionGenerating = false;
+  render();
 }
 
 function startGoldenWindowTimer() {
@@ -272,6 +304,10 @@ function render() {
     case 'daily-log':
       app.innerHTML = renderDailyLog();
       attachDailyLogHandlers();
+      break;
+    case 'weekly':
+      app.innerHTML = renderWeekly();
+      attachWeeklyHandlers();
       break;
     default:
       app.innerHTML = renderLoading();
@@ -364,58 +400,6 @@ function renderOnboarding() {
   </div>`;
 }
 
-function getEngageTasks() {
-  const posts = state.feedContext?.posts || [];
-  const tasks = [];
-
-  // Build personalized comment tasks from feed posts
-  for (let i = 0; i < 3; i++) {
-    const post = posts[i];
-    if (post && post.author && post.author !== 'Unknown') {
-      const snippet = post.text ? esc(post.text.substring(0, 50).trim()) : '';
-      tasks.push({
-        id: `comment_${i + 1}`,
-        label: `Comment on ${esc(post.author.split('\n')[0].trim())}'s post`,
-        sublabel: snippet ? `"${snippet}..."` : null,
-        category: 'engage',
-      });
-    } else {
-      tasks.push(DAILY_ACTIONS.engage[i]);
-    }
-  }
-
-  // Add remaining engage tasks with live counts
-  const likeTask = { ...DAILY_ACTIONS.engage[3] };
-  likeTask.label = `Like 5-8 posts`;
-  if (state.likeCount > 0) {
-    likeTask.sublabel = `${state.likeCount} liked so far`;
-  }
-  tasks.push(likeTask);
-
-  const reactTask = { ...DAILY_ACTIONS.engage[4] };
-  reactTask.label = `React (non-like) to 2 posts`;
-  if (state.reactCount > 0) {
-    reactTask.sublabel = `${state.reactCount} reacted so far`;
-  }
-  tasks.push(reactTask);
-
-  return tasks;
-}
-
-function getConnectTasks() {
-  // If on a profile page, personalize the connection request task
-  if (state.profileContext?.headline) {
-    const name = state.profileContext.headline.split(' ').slice(0, 2).join(' ') || '';
-    return DAILY_ACTIONS.connect.map(a => {
-      if (a.id === 'send_connections' && name) {
-        return { ...a, label: `Send request to ${name} + 2-4 others`, sublabel: state.profileContext.headline };
-      }
-      return a;
-    });
-  }
-  return DAILY_ACTIONS.connect;
-}
-
 function renderContextBanner() {
   const onLinkedIn = state.feedContext || state.profileContext;
 
@@ -437,7 +421,10 @@ function renderContextBanner() {
     <div style="font-size:12px;color:#15803d">
       ${hasPosts ? `Reading ${state.feedContext.posts.length} posts from your feed` : `You're on a ${pageName} page`}
     </div>
-    <button id="btn-refresh-context" style="padding:4px 10px;background:#dcfce7;color:#15803d;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:500">Refresh</button>
+    <div style="display:flex;gap:6px">
+      ${!state.session?.is_dynamic ? `<button id="btn-personalize" style="padding:4px 10px;background:#15803d;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:500">Personalize</button>` : ''}
+      <button id="btn-refresh-context" style="padding:4px 10px;background:#dcfce7;color:#15803d;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:500">Refresh</button>
+    </div>
   </div>`;
 }
 
@@ -445,16 +432,15 @@ function renderDashboard() {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const calendar = CONTENT_CALENDAR[dayOfWeek];
-  const completedActions = state.session?.completed_actions || [];
+  const sessionData = state.session?.session_data || { theme: '', actions: [], estimated_minutes: 5 };
+  const actions = sessionData.actions || [];
+  const completedActions = actions.filter(a => a.completed);
   const streakCount = state.streak?.current_streak || 0;
   const longestStreak = state.streak?.longest_streak || 0;
   const tierLimit = TIER_LIMITS[state.user?.tier || 'free'];
   const streakMsg = getStreakMessage(streakCount);
-  const totalActions = state.session?.total_actions || 10;
+  const totalActions = actions.length || 1;
   const pct = Math.round((completedActions.length / totalActions) * 100);
-
-  const isConnectDay = [1, 3, 5].includes(dayOfWeek);
-  const isGrowDay = [2, 4].includes(dayOfWeek);
 
   // Progress ring SVG
   const radius = 23;
@@ -464,9 +450,36 @@ function renderDashboard() {
   const usedCount = state.usage?.used || 0;
   const firstName = state.user?.name?.split(' ')[0] || '';
 
-  // Dynamic tasks based on feed context
-  const engageTasks = getEngageTasks();
-  const connectTasks = getConnectTasks();
+  // Group actions by category
+  const categories = {};
+  for (const action of actions) {
+    const cat = action.category || 'engage';
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(action);
+  }
+
+  // Render category sections
+  const categoryOrder = ['engage', 'create', 'connect', 'grow', 'reflect'];
+  let sectionsHtml = '';
+  let stepNum = 1;
+
+  for (const cat of categoryOrder) {
+    const catActions = categories[cat];
+    if (!catActions || catActions.length === 0) continue;
+    const style = CATEGORY_STYLES[cat] || CATEGORY_STYLES.engage;
+
+    sectionsHtml += `
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:${style.bg};color:${style.color}">${cat === 'reflect' ? style.badge : 'Step ' + stepNum}</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">${style.badge}</span>
+        <span class="section-time">${catActions.length} task${catActions.length !== 1 ? 's' : ''}</span>
+      </div>
+      ${catActions.map(a => renderTask(a)).join('')}
+    </div>`;
+
+    if (cat !== 'reflect') stepNum++;
+  }
 
   return `<div style="padding-bottom:16px">
     <!-- Header -->
@@ -474,9 +487,12 @@ function renderDashboard() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div>
           <div style="font-size:14px;opacity:0.8">${getGreeting()}${firstName ? ', ' + firstName : ''}</div>
-          <div style="font-size:11px;opacity:0.6;margin-top:2px">${calendar.emoji} Today: ${calendar.label}</div>
+          <div style="font-size:11px;opacity:0.6;margin-top:2px">${calendar.emoji} ${esc(sessionData.theme || calendar.label)}</div>
         </div>
-        <button id="btn-settings" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">Settings</button>
+        <div style="display:flex;gap:6px">
+          <button id="btn-weekly" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:500">Weekly</button>
+          <button id="btn-settings" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:500">Settings</button>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:16px">
         <!-- Progress ring -->
@@ -509,6 +525,13 @@ function renderDashboard() {
 
     ${renderContextBanner()}
 
+    ${state.sessionGenerating ? `
+    <div style="margin:10px 14px 0;padding:12px 14px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;display:flex;align-items:center;gap:10px">
+      <div style="width:18px;height:18px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+      <span style="font-size:12px;color:#7c3aed;font-weight:500">Generating your personalized session...</span>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>` : ''}
+
     ${state.goldenWindowStart ? `
     <div class="golden-bar" style="margin:10px 14px 0;padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
       <div>
@@ -518,57 +541,7 @@ function renderDashboard() {
       <div id="golden-timer" style="font-size:18px;font-weight:700;color:#92400e;font-family:monospace">--:--</div>
     </div>` : ''}
 
-    <!-- Step 1: Engage -->
-    <div style="margin:16px 14px 0">
-      <div class="section-header">
-        <span class="section-badge" style="background:#eff6ff;color:#2563eb">Step 1</span>
-        <span style="font-size:13px;font-weight:600;color:#1e293b">Engage</span>
-        <span class="section-time">2-3 min</span>
-      </div>
-      ${engageTasks.map(a => renderTask(a, completedActions)).join('')}
-    </div>
-
-    <!-- Step 2: Create -->
-    <div style="margin:16px 14px 0">
-      <div class="section-header">
-        <span class="section-badge" style="background:#faf5ff;color:#7c3aed">Step 2</span>
-        <span style="font-size:13px;font-weight:600;color:#1e293b">Create</span>
-        <span class="section-time">3-5 min</span>
-      </div>
-      ${DAILY_ACTIONS.create.map(a => renderTask(a, completedActions)).join('')}
-    </div>
-
-    ${isConnectDay ? `
-    <!-- Step 3: Connect -->
-    <div style="margin:16px 14px 0">
-      <div class="section-header">
-        <span class="section-badge" style="background:#ecfdf5;color:#059669">Step 3</span>
-        <span style="font-size:13px;font-weight:600;color:#1e293b">Connect</span>
-        <span class="section-time">1-2 min</span>
-      </div>
-      ${connectTasks.map(a => renderTask(a, completedActions)).join('')}
-    </div>` : ''}
-
-    ${isGrowDay ? `
-    <!-- Step 3: Grow -->
-    <div style="margin:16px 14px 0">
-      <div class="section-header">
-        <span class="section-badge" style="background:#fefce8;color:#ca8a04">Step 3</span>
-        <span style="font-size:13px;font-weight:600;color:#1e293b">Grow</span>
-        <span class="section-time">1 min</span>
-      </div>
-      ${DAILY_ACTIONS.grow.map(a => renderTask(a, completedActions)).join('')}
-    </div>` : ''}
-
-    <!-- Reflect -->
-    <div style="margin:16px 14px 0">
-      <div class="section-header">
-        <span class="section-badge" style="background:#fdf2f8;color:#be185d">Reflect</span>
-        <span style="font-size:13px;font-weight:600;color:#1e293b">Build your voice</span>
-        <span class="section-time">1 min</span>
-      </div>
-      ${DAILY_ACTIONS.reflect.map(a => renderTask(a, completedActions)).join('')}
-    </div>
+    ${sectionsHtml}
 
     <!-- AI Tools -->
     <div style="margin:20px 14px 0">
@@ -666,8 +639,9 @@ function renderDashboard() {
   </div>`;
 }
 
-function renderTask(action, completedActions) {
-  const done = completedActions.includes(action.id);
+function renderTask(action) {
+  const done = action.completed;
+  const hasWhy = action.why;
   return `<div class="task-row ${done ? 'completed' : ''}" data-action="${action.id}">
     <div class="task-check ${done ? 'done' : ''}">
       <svg width="12" height="12" viewBox="0 0 20 20" fill="#fff"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
@@ -675,8 +649,74 @@ function renderTask(action, completedActions) {
     <div style="flex:1;min-width:0">
       <div class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${esc(action.label)}</div>
       ${action.sublabel ? `<div style="font-size:11px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${esc(action.sublabel)}</div>` : ''}
+      ${hasWhy && !done ? `<div style="font-size:10px;color:#a78bfa;margin-top:2px">${esc(action.why)}</div>` : ''}
     </div>
+    ${action.ai_type && !done ? `<button data-task-ai="${action.ai_type}" data-task-id="${action.id}" class="task-ai-btn" style="padding:4px 8px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;font-size:10px;color:#7c3aed;cursor:pointer;font-weight:600;white-space:nowrap;flex-shrink:0">AI</button>` : ''}
   </div>`;
+}
+
+function renderWeekly() {
+  const stats = state.weeklyStats;
+  const loading = !stats;
+
+  return `<div style="padding-bottom:16px">
+    <div style="padding:20px 16px 16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:18px;font-weight:700">Weekly Progress</span>
+        <button id="btn-weekly-back" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500">Back</button>
+      </div>
+      ${stats ? `<p style="font-size:12px;opacity:0.7;margin-top:6px">Week of ${stats.week_start}</p>` : ''}
+    </div>
+
+    ${loading ? `<div style="padding:40px;text-align:center">
+      <div style="width:30px;height:30px;border:3px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto"></div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>` : `
+    <div style="margin:16px 14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+        <div style="font-size:28px;font-weight:700;color:#7c3aed">${stats.sessions_completed}</div>
+        <div style="font-size:11px;color:#9ca3af">Sessions completed</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+        <div style="font-size:28px;font-weight:700;color:#2563eb">${stats.total_actions_completed}</div>
+        <div style="font-size:11px;color:#9ca3af">Actions taken</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+        <div style="font-size:28px;font-weight:700;color:#059669">${stats.ai_suggestions_used}</div>
+        <div style="font-size:11px;color:#9ca3af">AI suggestions used</div>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;text-align:center">
+        <div style="font-size:28px;font-weight:700;color:#f59e0b">${stats.stories_added}</div>
+        <div style="font-size:11px;color:#9ca3af">Stories added</div>
+      </div>
+    </div>
+
+    ${stats.daily_breakdown?.length > 0 ? `
+    <div style="margin:16px 14px 0">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Daily breakdown</div>
+      ${stats.daily_breakdown.map(d => {
+        const pct = d.actions_total > 0 ? Math.round((d.actions_completed / d.actions_total) * 100) : 0;
+        const dayName = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+          <span style="font-size:12px;color:#6b7280;width:36px">${dayName}</span>
+          <div style="flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${d.completed_at ? '#10b981' : '#7c3aed'};border-radius:4px;transition:width 0.3s"></div>
+          </div>
+          <span style="font-size:11px;color:#9ca3af;width:32px;text-align:right">${d.actions_completed}/${d.actions_total}</span>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div style="margin:16px 14px 0;text-align:center;padding:20px;color:#9ca3af;font-size:13px">No sessions this week yet. Start your first one!</div>
+    `}
+    `}
+  </div>`;
+}
+
+function attachWeeklyHandlers() {
+  document.getElementById('btn-weekly-back')?.addEventListener('click', () => {
+    state.view = 'dashboard';
+    render();
+  });
 }
 
 function renderSettings() {
@@ -847,7 +887,6 @@ function attachOnboardingContextHandlers() {
   });
 
   document.getElementById('btn-skip-context')?.addEventListener('click', async () => {
-    // If user already has a profile, go back to settings instead of dashboard
     if (state.user?.profile?.headline) {
       state.view = 'settings';
       render();
@@ -1007,8 +1046,9 @@ function attachDailyLogHandlers() {
     } catch (err) {
       console.error('Failed to save daily log:', err);
     }
-    // Auto-complete the daily log task
-    await autoCompleteTask('add_daily_log');
+    // Auto-complete the reflect action
+    const reflectAction = state.session?.session_data?.actions?.find(a => a.category === 'reflect' && !a.completed);
+    if (reflectAction) await autoCompleteAction(reflectAction.id);
     state.view = 'dashboard';
     render();
   });
@@ -1199,7 +1239,6 @@ function attachOnboardingHandlers() {
     try {
       await api.updateProfile({ headline, industry, topics });
       state.user = await api.getMe();
-      // Go to personal context step
       state.view = 'onboarding-context';
       render();
     } catch (err) {
@@ -1215,7 +1254,6 @@ function attachDashboardHandlers() {
   // Context banner buttons
   document.getElementById('btn-open-feed')?.addEventListener('click', async () => {
     await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' });
-    // Re-read context after a short delay for the tab to load
     setTimeout(async () => {
       await readPageContext();
       render();
@@ -1229,45 +1267,55 @@ function attachDashboardHandlers() {
     render();
   });
 
-  document.querySelectorAll('[data-action]').forEach(card => {
-    card.addEventListener('click', async () => {
-      const actionId = card.dataset.action;
-      const current = state.session?.completed_actions || [];
-      const wasCompleted = current.includes(actionId);
+  // Personalize button - generates AI session
+  document.getElementById('btn-personalize')?.addEventListener('click', () => {
+    generateDynamicSession();
+  });
 
-      // Open daily log view when clicking the daily log task (if not already done)
-      if (actionId === 'add_daily_log' && !wasCompleted) {
+  // Task completion
+  document.querySelectorAll('[data-action]').forEach(card => {
+    card.addEventListener('click', async (e) => {
+      // Don't toggle if clicking the AI button inside the task
+      if (e.target.closest('[data-task-ai]')) return;
+
+      const actionId = card.dataset.action;
+      const actions = state.session?.session_data?.actions || [];
+      const action = actions.find(a => a.id === actionId);
+      if (!action) return;
+
+      // Open daily log view when clicking a reflect task (if not already done)
+      if (action.category === 'reflect' && !action.completed) {
         state.view = 'daily-log';
         render();
         return;
       }
 
-      const updated = wasCompleted
-        ? current.filter(a => a !== actionId)
-        : [...current, actionId];
+      const wasCompleted = action.completed;
+      action.completed = !wasCompleted;
 
-      state.session.completed_actions = updated;
+      state.session.actions_completed = actions.filter(a => a.completed).length;
 
-      if (!wasCompleted && actionId === 'publish_post' && !state.goldenWindowStart) {
+      if (!wasCompleted && action.label?.toLowerCase().includes('publish') && !state.goldenWindowStart) {
         state.goldenWindowStart = Date.now();
         chrome.runtime.sendMessage({ type: 'START_GOLDEN_WINDOW' }).catch(() => {});
       }
 
       // Track all-done state for badge
-      const totalActions = state.session?.total_actions || 10;
-      if (updated.length >= totalActions) {
+      const allDone = state.session.actions_completed >= actions.length;
+      if (allDone) {
         chrome.runtime.sendMessage({ type: 'TASKS_COMPLETED' }).catch(() => {});
-      } else if (wasCompleted && current.length >= totalActions) {
-        // Was all-done, now unchecked something
+      } else if (wasCompleted) {
         chrome.runtime.sendMessage({ type: 'TASKS_UNCOMPLETED' }).catch(() => {});
       }
 
       // Show daily log prompt when all tasks completed
-      if (!wasCompleted && updated.length >= totalActions) {
+      if (!wasCompleted && allDone) {
         const { dailyLogShown } = await chrome.storage.local.get('dailyLogShown');
         const todayStr = new Date().toISOString().split('T')[0];
         if (dailyLogShown !== todayStr) {
           await chrome.storage.local.set({ dailyLogShown: todayStr });
+          // Save state first, then show daily log
+          api.completeAction(actionId, true).catch(err => console.error('Failed to save action:', err));
           state.view = 'daily-log';
           render();
           return;
@@ -1276,17 +1324,23 @@ function attachDashboardHandlers() {
 
       render();
 
-      chrome.storage.local.set({ pendingSession: { completed_actions: updated } });
-
       try {
-        await api.updateToday({ completed_actions: updated });
-        chrome.storage.local.remove('pendingSession');
+        await api.completeAction(actionId, !wasCompleted);
       } catch (err) {
         console.error('Failed to save action:', err);
       }
     });
   });
 
+  // AI buttons inside task cards
+  document.querySelectorAll('[data-task-ai]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleAITool(btn.dataset.taskAi);
+    });
+  });
+
+  // AI tool buttons
   document.querySelectorAll('[data-ai]').forEach(btn => {
     btn.addEventListener('click', () => handleAITool(btn.dataset.ai));
   });
@@ -1334,6 +1388,19 @@ function attachDashboardHandlers() {
     state.view = 'settings';
     render();
   });
+
+  document.getElementById('btn-weekly')?.addEventListener('click', async () => {
+    state.weeklyStats = null;
+    state.view = 'weekly';
+    render();
+    try {
+      state.weeklyStats = await api.getWeekly();
+    } catch (err) {
+      console.error('Failed to load weekly stats:', err);
+      state.weeklyStats = { week_start: '', sessions_completed: 0, total_actions_completed: 0, ai_suggestions_used: 0, stories_added: 0, daily_breakdown: [] };
+    }
+    render();
+  });
 }
 
 async function handleAITool(type, params) {
@@ -1348,7 +1415,6 @@ async function handleAITool(type, params) {
         let postText = params?.postText;
         let authorName = params?.authorName;
         if (!postText) {
-          // Priority: focused post (user clicked comment) > first feed post > fallback
           if (state.focusedPost?.text) {
             postText = state.focusedPost.text;
             authorName = state.focusedPost.author;
@@ -1405,9 +1471,7 @@ async function handleAITool(type, params) {
       case 'note': {
         let name = params?.name;
         let headline = params?.headline;
-        // Auto-fill from profile context if on a profile page
         if (!name && state.profileContext?.headline) {
-          // Parse name from headline (first line is usually the name area)
           name = prompt('Their name:', '');
           headline = state.profileContext.headline;
         }
@@ -1440,7 +1504,7 @@ function attachSettingsHandlers() {
 
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await api.logout();
-    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [], likeCount: 0, reactCount: 0, focusedPost: null };
+    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [], likeCount: 0, reactCount: 0, focusedPost: null, sessionGenerating: false, weeklyStats: null };
     render();
   });
 
@@ -1545,20 +1609,7 @@ function attachSettingsHandlers() {
 // Persist state on unload
 window.addEventListener('beforeunload', () => {
   if (state.pollInterval) clearInterval(state.pollInterval);
-  if (state.session?.completed_actions) {
-    chrome.storage.local.set({ pendingSession: { completed_actions: state.session.completed_actions } });
-  }
 });
-
-async function restorePendingState() {
-  const { pendingSession } = await chrome.storage.local.get('pendingSession');
-  if (pendingSession && api.isLoggedIn()) {
-    try {
-      await api.updateToday(pendingSession);
-      await chrome.storage.local.remove('pendingSession');
-    } catch {}
-  }
-}
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'DAILY_RESET') {
@@ -1566,4 +1617,4 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-restorePendingState().then(init);
+init();

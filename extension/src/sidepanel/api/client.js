@@ -162,8 +162,12 @@ class WarmupAPI {
   // Sessions
   async getToday() { return this.request('GET', '/api/sessions/today'); }
   async updateToday(data) { return this.request('PUT', '/api/sessions/today', data); }
+  async generateSession(feedPosts) { return this.request('POST', '/api/sessions/generate', { feed_posts: feedPosts }); }
+  async completeAction(actionId, completed) { return this.request('PUT', '/api/sessions/action', { action_id: actionId, completed }); }
   async getStreak() { return this.request('GET', '/api/sessions/streak'); }
   async getStats() { return this.request('GET', '/api/sessions/stats'); }
+  async getWeekly() { return this.request('GET', '/api/sessions/weekly'); }
+  async reportPerformance(data) { return this.request('POST', '/api/sessions/performance', data); }
 
   // Billing
   async createCheckout(priceId) { return this.request('POST', '/api/billing/checkout', { priceId }); }
