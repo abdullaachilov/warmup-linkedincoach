@@ -157,12 +157,8 @@ const getPageContext = () => {
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
-    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-    const text = (btn.textContent || '').trim().toLowerCase();
-    // LinkedIn comment submit button: "Post comment" or "Reply" or submit button in comment form
-    if (ariaLabel.includes('post comment') || ariaLabel.includes('submit comment') ||
-        (text === 'post' && btn.closest('.comments-comment-box__form, .comments-comment-texteditor')) ||
-        (text === 'reply' && btn.closest('.comments-comment-box__form, .comments-comment-texteditor'))) {
+    // LinkedIn comment submit: button with class "comments-comment-box__submit-button" and text "Comment"
+    if (btn.className.includes('comments-comment-box__submit-button')) {
       chrome.runtime.sendMessage({ type: 'USER_COMMENTED' }).catch(() => {});
     }
   }, true);
