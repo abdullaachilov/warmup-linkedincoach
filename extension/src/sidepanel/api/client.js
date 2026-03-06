@@ -45,7 +45,6 @@ class WarmupAPI {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    // If user is BYOK, include their key
     const { byokKey } = await chrome.storage.local.get('byokKey');
     if (byokKey) {
       headers['X-BYOK-Key'] = byokKey;
@@ -60,7 +59,6 @@ class WarmupAPI {
     if (response.status === 401) {
       const refreshed = await this.refreshAuth();
       if (refreshed) return this.request(method, path, body);
-      // Clear tokens and signal re-login needed
       await chrome.storage.local.remove(['jwt', 'refreshToken']);
       this.token = null;
       this.refreshToken = null;
@@ -99,22 +97,46 @@ class WarmupAPI {
     }
   }
 
-  // Auth
-  async register(email, password) {
-    return this.request('POST', '/api/auth/register', { email, password });
+  // LinkedIn OAuth
+  async startLinkedInLogin() {
+    const sessionId = crypto.randomUUID();
+    await chrome.storage.local.set({ oauthSessionId: sessionId });
+    // Open LinkedIn auth in new tab
+    const url = `${API_URL}/api/auth/linkedin?session_id=${sessionId}`;
+    await chrome.tabs.create({ url });
+    return sessionId;
   }
 
-  async login(email, password) {
-    const result = await this.request('POST', '/api/auth/login', { email, password });
+  async pollLinkedInLogin(sessionId) {
+    const response = await fetch(`${API_URL}/api/auth/linkedin/poll?session_id=${sessionId}`);
+    if (response.status === 202) return null; // Still pending
+    if (!response.ok) throw new Error('Login failed.');
+    const data = await response.json();
+    return data;
+  }
+
+  async completeLogin(data) {
+    this.token = data.jwt;
+    this.refreshToken = data.refreshToken;
+    await chrome.storage.local.set({ jwt: data.jwt, refreshToken: data.refreshToken });
+  }
+
+  // 2FA
+  async validate2FA(tempToken, code) {
+    const result = await this.request('POST', '/api/auth/2fa/validate', { tempToken, code });
     this.token = result.jwt;
     this.refreshToken = result.refreshToken;
     await chrome.storage.local.set({ jwt: result.jwt, refreshToken: result.refreshToken });
     return result;
   }
 
+  async setup2FA() { return this.request('POST', '/api/auth/2fa/setup'); }
+  async verify2FA(code) { return this.request('POST', '/api/auth/2fa/verify', { code }); }
+  async disable2FA(code) { return this.request('POST', '/api/auth/2fa/disable', { code }); }
+
   async logout() {
     try { await this.request('POST', '/api/auth/logout'); } catch {}
-    await chrome.storage.local.remove(['jwt', 'refreshToken']);
+    await chrome.storage.local.remove(['jwt', 'refreshToken', 'oauthSessionId']);
     this.token = null;
     this.refreshToken = null;
   }
@@ -146,6 +168,10 @@ class WarmupAPI {
   // Billing
   async createCheckout(priceId) { return this.request('POST', '/api/billing/checkout', { priceId }); }
   async getBillingStatus() { return this.request('GET', '/api/billing/status'); }
+  async billingPortal() { return this.request('POST', '/api/billing/portal'); }
+
+  // Post scoring
+  async scorePost(draft) { return this.request('POST', '/api/ai/score-post', { draft }); }
 }
 
 export const api = new WarmupAPI();

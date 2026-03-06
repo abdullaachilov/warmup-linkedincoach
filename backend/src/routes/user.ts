@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userResult = await db.query(
-      'SELECT id, email, tier, byok_enabled, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, picture_url, tier, byok_enabled, totp_enabled, role, created_at FROM users WHERE id = $1',
       [req.userId]
     );
     const profileResult = await db.query(

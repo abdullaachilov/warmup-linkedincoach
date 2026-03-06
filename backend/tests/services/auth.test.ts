@@ -2,160 +2,58 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authService, AppError } from '../../src/services/auth.js';
 import { pushQueryResult } from '../setup.js';
 import { redis } from '../../src/redis.js';
-import bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
-  describe('register', () => {
-    it('registers new user with valid email + password', async () => {
-      pushQueryResult({ rows: [] }); // No duplicate
-      pushQueryResult({ rows: [{ id: '123' }] }); // Insert user
-      pushQueryResult({ rows: [] }); // Insert profile
-      pushQueryResult({ rows: [] }); // Insert streak
-
-      const result = await authService.register('test@example.com', 'password123', '127.0.0.1');
-      expect(result.userId).toBe('123');
+  describe('LinkedIn OAuth', () => {
+    it('generates LinkedIn auth URL with correct params', () => {
+      const url = authService.getLinkedInAuthURL('test-session-123');
+      expect(url).toContain('linkedin.com/oauth/v2/authorization');
+      expect(url).toContain('test-session-123');
+      expect(url).toContain('openid');
+      expect(url).toContain('profile');
+      expect(url).toContain('email');
     });
 
-    it('rejects duplicate email', async () => {
-      pushQueryResult({ rows: [{ id: 'existing' }] }); // Duplicate found
-
-      await expect(
-        authService.register('dup@example.com', 'password123', '127.0.0.1')
-      ).rejects.toThrow('An account with this email already exists.');
+    it('pollOAuthSession returns null when no session data', async () => {
+      const result = await authService.pollOAuthSession('nonexistent');
+      expect(result).toBeNull();
     });
 
-    it('rejects invalid email format', async () => {
-      await expect(
-        authService.register('not-an-email', 'password123', '127.0.0.1')
-      ).rejects.toThrow('Invalid email format.');
-    });
+    it('pollOAuthSession returns data and consumes session', async () => {
+      (redis as any)._store.set('oauth_session:sess-1', JSON.stringify({ jwt: 'token123', refreshToken: 'rt123' }));
 
-    it('rejects weak password (< 8 chars)', async () => {
-      await expect(
-        authService.register('test@example.com', 'short', '127.0.0.1')
-      ).rejects.toThrow('Password must be at least 8 characters.');
-    });
+      const result = await authService.pollOAuthSession('sess-1');
+      expect(result).toEqual({ jwt: 'token123', refreshToken: 'rt123' });
 
-    it('hashes password with bcrypt', async () => {
-      pushQueryResult({ rows: [] }); // No duplicate
-      pushQueryResult({ rows: [{ id: '456' }] }); // Insert
-      pushQueryResult({ rows: [] }); // Profile
-      pushQueryResult({ rows: [] }); // Streak
-
-      const { db } = await import('../../src/db.js');
-      await authService.register('hash@example.com', 'mypassword123', '127.0.0.1');
-
-      const insertCall = (db.query as any).mock.calls.find(
-        (c: any) => c[0].includes('INSERT INTO users')
-      );
-      expect(insertCall).toBeTruthy();
-      // The password hash should start with $2b$ (bcrypt)
-      const passHash = insertCall[1][1];
-      expect(passHash).toMatch(/^\$2[aby]\$/);
-    });
-
-    it('rate limits: max 3 registrations per IP per day', async () => {
-      // Set IP counter to 3
-      (redis as any)._store.set(`reg_ip:127.0.0.1:${new Date().toISOString().split('T')[0]}`, '3');
-
-      await expect(
-        authService.register('new@example.com', 'password123', '127.0.0.1')
-      ).rejects.toThrow('Too many registrations');
-    });
-
-    it('blocks disposable email domains', async () => {
-      await expect(
-        authService.register('test@mailinator.com', 'password123', '127.0.0.1')
-      ).rejects.toThrow('Disposable email addresses are not allowed.');
+      // Should be consumed
+      const second = await authService.pollOAuthSession('sess-1');
+      expect(second).toBeNull();
     });
   });
 
-  describe('verifyEmail', () => {
-    it('verifies email with valid token', async () => {
-      (redis as any)._store.set('verify:validtoken', 'user-123');
-      pushQueryResult({ rows: [{ id: 'user-123' }] }); // Update query
-
-      await authService.verifyEmail('validtoken');
-      const { db } = await import('../../src/db.js');
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('email_verified = TRUE'),
-        expect.arrayContaining(['user-123'])
-      );
-    });
-
-    it('rejects expired/invalid token', async () => {
-      await expect(authService.verifyEmail('badtoken')).rejects.toThrow(
-        'Invalid or expired verification token.'
-      );
-    });
-  });
-
-  describe('login', () => {
-    it('returns JWT + refresh token for valid credentials', async () => {
-      const hash = await bcrypt.hash('password123', 10);
-      pushQueryResult({
-        rows: [{ id: 'user-1', email: 'test@example.com', email_verified: true, password_hash: hash, tier: 'free', byok_enabled: false, active: true }],
-      });
-      pushQueryResult({ rows: [{ id: 'rt-1' }] }); // Insert refresh token
-
-      const result = await authService.login('test@example.com', 'password123');
-      expect(result.jwt).toBeTruthy();
-      expect(result.refreshToken).toBeTruthy();
-      expect(result.user.email).toBe('test@example.com');
-    });
-
-    it('rejects wrong password', async () => {
-      const hash = await bcrypt.hash('correct', 10);
-      pushQueryResult({
-        rows: [{ id: 'user-1', email: 'test@example.com', email_verified: true, password_hash: hash, tier: 'free', byok_enabled: false, active: true }],
-      });
-
-      await expect(
-        authService.login('test@example.com', 'wrongpass')
-      ).rejects.toThrow('Invalid email or password.');
-    });
-
-    it('rejects unverified email', async () => {
-      const hash = await bcrypt.hash('password123', 10);
-      pushQueryResult({
-        rows: [{ id: 'user-1', email: 'test@example.com', email_verified: false, password_hash: hash, tier: 'free', byok_enabled: false, active: true }],
-      });
-
-      await expect(
-        authService.login('test@example.com', 'password123')
-      ).rejects.toThrow('Please verify your email');
-    });
-
-    it('rejects inactive user', async () => {
-      const hash = await bcrypt.hash('password123', 10);
-      pushQueryResult({
-        rows: [{ id: 'user-1', email: 'test@example.com', email_verified: true, password_hash: hash, tier: 'free', byok_enabled: false, active: false }],
-      });
-
-      await expect(
-        authService.login('test@example.com', 'password123')
-      ).rejects.toThrow('Account is suspended.');
-    });
-
-    it('rate limits: max 5 failed attempts per email per hour', async () => {
-      (redis as any)._store.set('login_fail:test@example.com', '5');
-
-      await expect(
-        authService.login('test@example.com', 'password123')
-      ).rejects.toThrow('Too many failed login attempts');
-    });
-
-    it('JWT contains correct claims', async () => {
-      const hash = await bcrypt.hash('password123', 10);
-      pushQueryResult({
-        rows: [{ id: 'user-42', email: 'test@example.com', email_verified: true, password_hash: hash, tier: 'starter', byok_enabled: false, active: true }],
-      });
-      pushQueryResult({ rows: [] }); // refresh token
-
-      const result = await authService.login('test@example.com', 'password123');
-      const decoded = authService.verifyJWT(result.jwt);
+  describe('JWT', () => {
+    it('generates valid JWT with correct claims', () => {
+      const token = authService.generateJWT('user-42', 'starter', 'user');
+      const decoded = authService.verifyJWT(token);
       expect(decoded.userId).toBe('user-42');
       expect(decoded.tier).toBe('starter');
+      expect(decoded.role).toBe('user');
+    });
+
+    it('generates admin JWT when role is admin', () => {
+      const token = authService.generateJWT('admin-1', 'pro', 'admin');
+      const decoded = authService.verifyJWT(token);
+      expect(decoded.role).toBe('admin');
+    });
+
+    it('defaults role to user', () => {
+      const token = authService.generateJWT('user-1', 'free');
+      const decoded = authService.verifyJWT(token);
+      expect(decoded.role).toBe('user');
+    });
+
+    it('rejects invalid JWT', () => {
+      expect(() => authService.verifyJWT('invalid-token')).toThrow();
     });
   });
 
@@ -163,10 +61,9 @@ describe('AuthService', () => {
     it('issues new JWT with valid refresh token', async () => {
       const crypto = await import('crypto');
       const token = 'valid-refresh-token';
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       pushQueryResult({
-        rows: [{ id: 'rt-1', user_id: 'user-1', used: false, expires_at: new Date(Date.now() + 86400000), tier: 'free', active: true }],
+        rows: [{ id: 'rt-1', user_id: 'user-1', used: false, expires_at: new Date(Date.now() + 86400000), tier: 'free', active: true, role: 'user' }],
       });
       pushQueryResult({ rows: [] }); // Mark old as used
       pushQueryResult({ rows: [] }); // Insert new
@@ -178,7 +75,7 @@ describe('AuthService', () => {
 
     it('rejects used refresh token', async () => {
       pushQueryResult({
-        rows: [{ id: 'rt-1', user_id: 'user-1', used: true, expires_at: new Date(Date.now() + 86400000), tier: 'free', active: true }],
+        rows: [{ id: 'rt-1', user_id: 'user-1', used: true, expires_at: new Date(Date.now() + 86400000), tier: 'free', active: true, role: 'user' }],
       });
 
       await expect(authService.refreshAuth('used-token')).rejects.toThrow('Refresh token already used.');
@@ -186,10 +83,18 @@ describe('AuthService', () => {
 
     it('rejects expired refresh token', async () => {
       pushQueryResult({
-        rows: [{ id: 'rt-1', user_id: 'user-1', used: false, expires_at: new Date(Date.now() - 86400000), tier: 'free', active: true }],
+        rows: [{ id: 'rt-1', user_id: 'user-1', used: false, expires_at: new Date(Date.now() - 86400000), tier: 'free', active: true, role: 'user' }],
       });
 
       await expect(authService.refreshAuth('expired-token')).rejects.toThrow('Refresh token expired.');
+    });
+
+    it('rejects suspended user', async () => {
+      pushQueryResult({
+        rows: [{ id: 'rt-1', user_id: 'user-1', used: false, expires_at: new Date(Date.now() + 86400000), tier: 'free', active: false, role: 'user' }],
+      });
+
+      await expect(authService.refreshAuth('suspended-token')).rejects.toThrow('Account is suspended.');
     });
   });
 
@@ -202,6 +107,22 @@ describe('AuthService', () => {
         expect.stringContaining('UPDATE refresh_tokens'),
         expect.arrayContaining(['user-1'])
       );
+    });
+  });
+
+  describe('2FA', () => {
+    it('setup2FA rejects if already enabled', async () => {
+      pushQueryResult({ rows: [{ email: 'test@example.com', totp_enabled: true }] });
+      await expect(authService.setup2FA('user-1')).rejects.toThrow('2FA is already enabled.');
+    });
+
+    it('disable2FA rejects if not enabled', async () => {
+      pushQueryResult({ rows: [{ email: 'test@example.com', totp_secret: null, totp_enabled: false }] });
+      await expect(authService.disable2FA('user-1', '123456')).rejects.toThrow('2FA is not enabled.');
+    });
+
+    it('validate2FA rejects expired temp token', async () => {
+      await expect(authService.validate2FA('expired-temp', '123456')).rejects.toThrow('Invalid or expired 2FA session.');
     });
   });
 });

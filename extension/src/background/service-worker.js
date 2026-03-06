@@ -23,14 +23,48 @@ chrome.alarms.create('daily-reset', {
   periodInMinutes: 60, // Check hourly
 });
 
+// Golden window check alarm (every minute when active)
+chrome.alarms.create('golden-window-check', {
+  periodInMinutes: 1,
+});
+
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'daily-reset') {
     const { lastResetDate } = await chrome.storage.local.get('lastResetDate');
     const today = new Date().toISOString().split('T')[0];
     if (lastResetDate !== today) {
       await chrome.storage.local.set({ lastResetDate: today });
-      // Notify side panel to refresh
       chrome.runtime.sendMessage({ type: 'DAILY_RESET' }).catch(() => {});
+    }
+  }
+
+  if (alarm.name === 'golden-window-check') {
+    const { goldenWindowStart } = await chrome.storage.local.get('goldenWindowStart');
+    if (!goldenWindowStart) return;
+
+    const elapsed = Date.now() - goldenWindowStart;
+    const minutes = Math.floor(elapsed / 60000);
+
+    // Notify at 30 and 60 minute marks
+    if (minutes === 30 || minutes === 60) {
+      const remaining = 90 - minutes;
+      chrome.notifications.create(`golden-${minutes}`, {
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title: 'Golden Window Active',
+        message: `${remaining} min left! Respond to comments on your post now - early engagement determines reach.`,
+      });
+    }
+
+    // Clear after 90 minutes
+    if (minutes >= 90) {
+      await chrome.storage.local.remove('goldenWindowStart');
+      chrome.notifications.create('golden-done', {
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title: 'Golden Window Ended',
+        message: 'Great job! Your 90-minute engagement window has closed.',
+      });
     }
   }
 });
@@ -50,6 +84,9 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'UPDATE_STREAK') {
     chrome.storage.local.set({ currentStreak: msg.streak });
     updateBadge();
+  }
+  if (msg.type === 'START_GOLDEN_WINDOW') {
+    chrome.storage.local.set({ goldenWindowStart: Date.now() });
   }
 });
 

@@ -75,6 +75,7 @@ export default function Privacy() {
               <li><strong>storage:</strong> Saves your login session and checklist progress locally.</li>
               <li><strong>activeTab:</strong> Reads the current LinkedIn page to provide context for AI suggestions.</li>
               <li><strong>alarms:</strong> Resets your daily checklist and updates streak counts.</li>
+              <li><strong>notifications:</strong> Sends reminders during your 90-minute post engagement window.</li>
               <li><strong>host_permissions (linkedin.com):</strong> Reads visible post content on LinkedIn for AI context. The extension never modifies LinkedIn pages.</li>
             </ul>
           </section>

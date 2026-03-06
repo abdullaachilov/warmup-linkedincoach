@@ -185,6 +185,50 @@ Their headline: ${data.target_headline}
   }
 });
 
+router.post('/score-post', async (req: Request, res: Response) => {
+  try {
+    const { draft } = req.body;
+    if (!draft || typeof draft !== 'string' || draft.length < 10) {
+      res.status(400).json({ error: 'Post draft required (minimum 10 characters).' });
+      return;
+    }
+    if (draft.length > 5000) {
+      res.status(400).json({ error: 'Post draft too long (max 5000 characters).' });
+      return;
+    }
+
+    const byokKey = extractBYOKKey(req);
+    const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';
+
+    const userMessage = `<post_draft>\n${draft}\n</post_draft>\n\n<task>Score this LinkedIn post draft and return the JSON analysis.</task>`;
+
+    const result = await makeAISuggestion({
+      userId: req.userId!,
+      tier,
+      byokKey,
+      systemPrompt: SYSTEM_PROMPTS['score-post'](),
+      userMessage,
+      maxTokens: 600,
+      suggestionType: 'score_post',
+    });
+
+    // Try to parse as JSON
+    let score;
+    try {
+      // Extract JSON from potential markdown code blocks
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      score = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(result.text);
+    } catch {
+      res.status(500).json({ error: 'Failed to parse score result.' });
+      return;
+    }
+
+    res.json({ score });
+  } catch (err: unknown) {
+    handleAIError(err, res);
+  }
+});
+
 function handleAIError(err: unknown, res: Response) {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message });

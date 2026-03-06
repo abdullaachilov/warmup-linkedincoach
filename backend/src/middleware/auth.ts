@@ -7,6 +7,7 @@ declare global {
     interface Request {
       userId?: string;
       userTier?: string;
+      userRole?: string;
     }
   }
 }
@@ -23,14 +24,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     const payload: TokenPayload = authService.verifyJWT(token);
     req.userId = payload.userId;
     req.userTier = payload.tier;
+    req.userRole = payload.role || 'user';
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token.' });
   }
 }
 
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.userRole !== 'admin') {
+    res.status(403).json({ error: 'Admin access required.' });
+    return;
+  }
+  next();
+}
+
 export function requireVerifiedEmail(req: Request, res: Response, next: NextFunction): void {
-  // This would check the user's email_verified status
-  // For now, the JWT is only issued after email verification, so this is implicit
+  // The JWT is only issued after email verification, so this is implicit
   next();
 }

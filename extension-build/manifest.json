@@ -7,7 +7,8 @@
     "sidePanel",
     "storage",
     "activeTab",
-    "alarms"
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"

@@ -10,6 +10,7 @@ import aiRoutes from './routes/ai.js';
 import sessionRoutes from './routes/sessions.js';
 import billingRoutes from './routes/billing.js';
 import userRoutes from './routes/user.js';
+import adminRoutes from './routes/admin.js';
 import { verifyRequestSignature } from './middleware/request-signing.js';
 
 const app = express();
@@ -79,11 +80,19 @@ app.use(rateLimit({
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10kb' }));
 
-// Request signing (skip for webhooks and health check)
-app.use('/api/auth', verifyRequestSignature);
+// Request signing (skip for webhooks, health check, and LinkedIn OAuth browser redirects)
+app.use('/api/auth', (req, res, next) => {
+  // LinkedIn OAuth routes are browser-initiated, not signed extension requests
+  if (req.path.startsWith('/linkedin')) {
+    next();
+    return;
+  }
+  verifyRequestSignature(req, res, next);
+});
 app.use('/api/ai', verifyRequestSignature);
 app.use('/api/me', verifyRequestSignature);
 app.use('/api/sessions', verifyRequestSignature);
+app.use('/api/admin', verifyRequestSignature);
 
 // Security headers on every response
 app.use((_req, res, next) => {
@@ -104,6 +113,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/me', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((_req, res) => {
@@ -132,36 +142,48 @@ async function start() {
 
 start();
 
-// Algorithm knowledge base
+// Algorithm knowledge base (updated for 2026)
 const ALGORITHM_RULES = {
   engagement_weights: {
+    save: 10,
+    send_share: 7,
     comment: 15,
-    share: 7,
-    reaction_nonlike: 2,
-    like: 1,
     dwell_time: 5,
     click_see_more: 3,
-    save: 10,
+    reaction_nonlike: 2,
+    like: 1,
   },
   posting: {
     best_days: ['tuesday', 'wednesday', 'thursday'],
     best_hours_local: [8, 9, 10],
-    ideal_length: { min: 100, max: 200 },
+    ideal_length_chars: { min: 900, max: 1500 },
     max_hashtags: 3,
-    golden_hour_minutes: 60,
-    link_in_body_penalty: 0.5,
+    golden_window_minutes: 90,
+    link_in_body_penalty: 0.4,
     edit_in_first_hour_kills_reach: true,
-    image_boost: 1.5,
-    carousel_boost: 2.5,
-    native_video_boost: 1.8,
+    min_hours_between_posts: 12,
+    format_performance: {
+      text_only: 'Best in 2026 - highest average reach',
+      carousel: 'Good for educational/list content',
+      poll: '200%+ reach but lower quality engagement',
+      image: 'Moderate boost, depends on quality',
+      native_video: 'Strong but requires high production',
+    },
+    engagement_bait_penalty: true,
+    engagement_bait_phrases: [
+      'Like if you agree', 'Comment YES', 'Share this with someone',
+      'Tag someone who', 'Repost if', 'Follow me for more',
+    ],
   },
   comments: {
     min_words: 5,
     ideal_range: { min: 15, max: 50 },
     early_comment_bonus: true,
+    depth_score_matters: true,
     generic_phrases_to_avoid: [
       'Great post!', 'Thanks for sharing!', 'This!',
-      'Agree!', 'Love this!', 'So true!', 'Well said!'
+      'Agree!', 'Love this!', 'So true!', 'Well said!',
+      'Couldn\'t agree more!', 'Spot on!',
     ],
   },
   connections: {
@@ -169,6 +191,11 @@ const ALGORITHM_RULES = {
     safe_weekly_limit: 25,
     note_max_chars: 200,
     note_acceptance_boost: 1.48,
+  },
+  signals: {
+    topical_consistency: 'Posting about the same 2-3 topics boosts reach over time',
+    depth_score: 'Algorithm rewards substantive content over surface-level takes',
+    creator_mode: 'Enable for Follow button and featured content section',
   },
   content_calendar: {
     monday: { type: 'insight', label: 'Industry insight or hot take', emoji: '🔥' },

@@ -91,11 +91,30 @@ router.post('/webhook', async (req: Request, res: Response) => {
   }
 
   try {
+    // Idempotency: skip already-processed events
+    const existingEvent = await db.query('SELECT event_id FROM webhook_events WHERE event_id = $1', [event.id]);
+    if (existingEvent.rows.length > 0) {
+      res.json({ received: true, duplicate: true });
+      return;
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.userId;
         if (!userId) break;
+
+        // Validate customer matches our DB
+        if (session.customer) {
+          const customerCheck = await db.query(
+            'SELECT id FROM users WHERE id = $1 AND stripe_customer_id = $2',
+            [userId, session.customer]
+          );
+          if (customerCheck.rows.length === 0) {
+            console.error(`Webhook: userId ${userId} does not match customer ${session.customer}`);
+            break;
+          }
+        }
 
         if (session.mode === 'payment') {
           // BYOK one-time purchase
@@ -151,6 +170,12 @@ router.post('/webhook', async (req: Request, res: Response) => {
         break;
       }
     }
+
+    // Record processed event for idempotency
+    await db.query(
+      'INSERT INTO webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [event.id, event.type]
+    );
 
     res.json({ received: true });
   } catch (err) {
