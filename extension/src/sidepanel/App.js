@@ -83,6 +83,10 @@ async function autoCompleteTask(actionId) {
   if (current.includes(actionId)) return;
   const updated = [...current, actionId];
   state.session.completed_actions = updated;
+  const totalActions = state.session?.total_actions || 10;
+  if (updated.length >= totalActions) {
+    chrome.runtime.sendMessage({ type: 'TASKS_COMPLETED' }).catch(() => {});
+  }
   render();
   chrome.storage.local.set({ pendingSession: { completed_actions: updated } });
   try {
@@ -478,8 +482,8 @@ function renderDashboard() {
           <div class="count">${completedActions.length}</div>
         </div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600">${completedActions.length} of ${totalActions} tasks done</div>
-          <div style="font-size:11px;opacity:0.7;margin-top:2px">${pct === 100 ? 'All done! Great work today.' : pct >= 50 ? 'Keep it up - past halfway!' : 'Let\'s get started!'}</div>
+          <div style="font-size:13px;font-weight:600">${pct === 100 ? 'All tasks done!' : `${completedActions.length} of ${totalActions} tasks`}</div>
+          <div style="font-size:11px;opacity:0.7;margin-top:2px">${pct >= 50 && pct < 100 ? 'Keep it up - past halfway!' : pct < 50 ? 'Let\'s get started!' : ''}</div>
         </div>
         <div style="text-align:center">
           <div class="streak-num">${streakCount > 0 ? streakCount : '-'}</div>
@@ -488,6 +492,12 @@ function renderDashboard() {
         </div>
       </div>
     </div>
+
+    ${pct === 100 ? `<div style="margin:10px 14px 0;padding:16px;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #86efac;border-radius:12px;text-align:center">
+      <div style="font-size:28px;margin-bottom:4px">&#x1F389;</div>
+      <div style="font-size:15px;font-weight:700;color:#15803d">Today's warmup complete!</div>
+      <div style="font-size:12px;color:#16a34a;margin-top:4px">You showed up, engaged, created, and grew. That's how compound growth works.</div>
+    </div>` : ''}
 
     ${streakMsg ? `<div style="margin:10px 14px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#15803d;text-align:center;font-weight:500">${streakMsg}</div>` : ''}
 
@@ -1237,8 +1247,16 @@ function attachDashboardHandlers() {
         chrome.runtime.sendMessage({ type: 'START_GOLDEN_WINDOW' }).catch(() => {});
       }
 
-      // Show daily log prompt when all tasks completed
+      // Track all-done state for badge
       const totalActions = state.session?.total_actions || 10;
+      if (updated.length >= totalActions) {
+        chrome.runtime.sendMessage({ type: 'TASKS_COMPLETED' }).catch(() => {});
+      } else if (wasCompleted && current.length >= totalActions) {
+        // Was all-done, now unchecked something
+        chrome.runtime.sendMessage({ type: 'TASKS_UNCOMPLETED' }).catch(() => {});
+      }
+
+      // Show daily log prompt when all tasks completed
       if (!wasCompleted && updated.length >= totalActions) {
         const { dailyLogShown } = await chrome.storage.local.get('dailyLogShown');
         const todayStr = new Date().toISOString().split('T')[0];

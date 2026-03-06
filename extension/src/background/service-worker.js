@@ -33,8 +33,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const { lastResetDate } = await chrome.storage.local.get('lastResetDate');
     const today = new Date().toISOString().split('T')[0];
     if (lastResetDate !== today) {
-      await chrome.storage.local.set({ lastResetDate: today });
+      await chrome.storage.local.set({ lastResetDate: today, allTasksDone: false });
       chrome.runtime.sendMessage({ type: 'DAILY_RESET' }).catch(() => {});
+      updateBadge();
     }
   }
 
@@ -69,10 +70,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
-// Update badge with streak count
+// Update badge - show checkmark when all done, otherwise streak count
 async function updateBadge() {
-  const { currentStreak } = await chrome.storage.local.get('currentStreak');
-  if (currentStreak && currentStreak > 0) {
+  const { allTasksDone, currentStreak } = await chrome.storage.local.get(['allTasksDone', 'currentStreak']);
+  if (allTasksDone) {
+    chrome.action.setBadgeText({ text: '\u2713' });
+    chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+  } else if (currentStreak && currentStreak > 1) {
     chrome.action.setBadgeText({ text: `${currentStreak}` });
     chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
   } else {
@@ -83,6 +87,14 @@ async function updateBadge() {
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'UPDATE_STREAK') {
     chrome.storage.local.set({ currentStreak: msg.streak });
+    updateBadge();
+  }
+  if (msg.type === 'TASKS_COMPLETED') {
+    chrome.storage.local.set({ allTasksDone: true });
+    updateBadge();
+  }
+  if (msg.type === 'TASKS_UNCOMPLETED') {
+    chrome.storage.local.set({ allTasksDone: false });
     updateBadge();
   }
   if (msg.type === 'START_GOLDEN_WINDOW') {
