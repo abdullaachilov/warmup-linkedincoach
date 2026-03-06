@@ -17,7 +17,7 @@ export class AuthService {
   // --- LinkedIn OAuth ---
 
   getLinkedInAuthURL(sessionId: string): string {
-    const redirectUri = `${process.env.APP_URL || 'https://warmup-api-production.up.railway.app'}/api/auth/linkedin/callback`;
+    const redirectUri = `${process.env.APP_URL || 'https://api.networkwarmup.com'}/api/auth/linkedin/callback`;
     const scope = 'openid profile email';
     const params = new URLSearchParams({
       response_type: 'code',
@@ -30,7 +30,7 @@ export class AuthService {
   }
 
   async handleLinkedInCallback(code: string, sessionId: string): Promise<void> {
-    const redirectUri = `${process.env.APP_URL || 'https://warmup-api-production.up.railway.app'}/api/auth/linkedin/callback`;
+    const redirectUri = `${process.env.APP_URL || 'https://api.networkwarmup.com'}/api/auth/linkedin/callback`;
 
     // Exchange code for access token
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
