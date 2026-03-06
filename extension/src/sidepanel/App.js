@@ -18,6 +18,8 @@ let state = {
   tempToken: null,
   oauthSessionId: null,
   pollInterval: null,
+  feedContext: null, // { page, posts } from content script
+  profileContext: null, // { profile } when on a profile page
 };
 
 // Initialize
@@ -50,6 +52,33 @@ async function init() {
   }
 }
 
+async function readPageContext() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url?.includes('linkedin.com')) {
+      state.feedContext = null;
+      state.profileContext = null;
+      return;
+    }
+
+    if (tab.url.includes('/feed')) {
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_FEED_CONTEXT' });
+      state.feedContext = response || null;
+      state.profileContext = null;
+    } else if (tab.url.includes('/in/')) {
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PARSE_PROFILE' });
+      state.profileContext = response?.profile || null;
+      state.feedContext = null;
+    } else {
+      state.feedContext = null;
+      state.profileContext = null;
+    }
+  } catch {
+    state.feedContext = null;
+    state.profileContext = null;
+  }
+}
+
 async function loadDashboard() {
   try {
     const [session, streak] = await Promise.all([
@@ -68,6 +97,9 @@ async function loadDashboard() {
     state.aiHistory = aiHistory || [];
 
     chrome.runtime.sendMessage({ type: 'UPDATE_STREAK', streak: streak.current_streak }).catch(() => {});
+
+    // Read current page context for personalized tasks
+    await readPageContext();
 
     render();
   } catch (err) {
@@ -233,6 +265,70 @@ function renderOnboarding() {
   </div>`;
 }
 
+function getEngageTasks() {
+  const posts = state.feedContext?.posts || [];
+  const tasks = [];
+
+  // Build personalized comment tasks from feed posts
+  for (let i = 0; i < 3; i++) {
+    const post = posts[i];
+    if (post && post.author && post.author !== 'Unknown') {
+      const snippet = post.text ? post.text.substring(0, 50).trim() : '';
+      tasks.push({
+        id: `comment_${i + 1}`,
+        label: `Comment on ${post.author.split('\n')[0].trim()}'s post`,
+        sublabel: snippet ? `"${snippet}..."` : null,
+        category: 'engage',
+      });
+    } else {
+      tasks.push(DAILY_ACTIONS.engage[i]);
+    }
+  }
+
+  // Add remaining engage tasks
+  tasks.push(...DAILY_ACTIONS.engage.slice(3));
+  return tasks;
+}
+
+function getConnectTasks() {
+  // If on a profile page, personalize the connection request task
+  if (state.profileContext?.headline) {
+    const name = state.profileContext.headline.split(' ').slice(0, 2).join(' ') || '';
+    return DAILY_ACTIONS.connect.map(a => {
+      if (a.id === 'send_connections' && name) {
+        return { ...a, label: `Send request to ${name} + 2-4 others`, sublabel: state.profileContext.headline };
+      }
+      return a;
+    });
+  }
+  return DAILY_ACTIONS.connect;
+}
+
+function renderContextBanner() {
+  const onLinkedIn = state.feedContext || state.profileContext;
+
+  if (!onLinkedIn) {
+    return `<div style="margin:10px 14px 0;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;display:flex;align-items:center;gap:10px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#2563eb"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600;color:#1e40af">Open LinkedIn to get started</div>
+        <div style="font-size:11px;color:#3b82f6">Go to your feed for personalized tasks</div>
+      </div>
+      <button id="btn-open-feed" style="padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">Open Feed</button>
+    </div>`;
+  }
+
+  const hasPosts = state.feedContext?.posts?.length > 0;
+  const pageName = state.feedContext?.page === 'feed' ? 'feed' : state.profileContext ? 'profile' : 'LinkedIn';
+
+  return `<div style="margin:10px 14px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-size:12px;color:#15803d">
+      ${hasPosts ? `Reading ${state.feedContext.posts.length} posts from your feed` : `You're on a ${pageName} page`}
+    </div>
+    <button id="btn-refresh-context" style="padding:4px 10px;background:#dcfce7;color:#15803d;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:500">Refresh</button>
+  </div>`;
+}
+
 function renderDashboard() {
   const today = new Date();
   const dayOfWeek = today.getDay();
@@ -255,6 +351,10 @@ function renderDashboard() {
 
   const usedCount = state.usage?.used || 0;
   const firstName = state.user?.name?.split(' ')[0] || '';
+
+  // Dynamic tasks based on feed context
+  const engageTasks = getEngageTasks();
+  const connectTasks = getConnectTasks();
 
   return `<div style="padding-bottom:16px">
     <!-- Header -->
@@ -289,6 +389,8 @@ function renderDashboard() {
 
     ${streakMsg ? `<div style="margin:10px 14px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#15803d;text-align:center;font-weight:500">${streakMsg}</div>` : ''}
 
+    ${renderContextBanner()}
+
     ${state.goldenWindowStart ? `
     <div class="golden-bar" style="margin:10px 14px 0;padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
       <div>
@@ -305,7 +407,7 @@ function renderDashboard() {
         <span style="font-size:13px;font-weight:600;color:#1e293b">Engage</span>
         <span class="section-time">2-3 min</span>
       </div>
-      ${DAILY_ACTIONS.engage.map(a => renderTask(a, completedActions)).join('')}
+      ${engageTasks.map(a => renderTask(a, completedActions)).join('')}
     </div>
 
     <!-- Step 2: Create -->
@@ -326,7 +428,7 @@ function renderDashboard() {
         <span style="font-size:13px;font-weight:600;color:#1e293b">Connect</span>
         <span class="section-time">1-2 min</span>
       </div>
-      ${DAILY_ACTIONS.connect.map(a => renderTask(a, completedActions)).join('')}
+      ${connectTasks.map(a => renderTask(a, completedActions)).join('')}
     </div>` : ''}
 
     ${isGrowDay ? `
@@ -353,7 +455,7 @@ function renderDashboard() {
           </div>
           <div>
             <div style="font-size:13px;font-weight:600;color:#1e293b">Comment</div>
-            <div style="font-size:11px;color:#9ca3af">From current post</div>
+            <div style="font-size:11px;color:#9ca3af">${state.feedContext?.posts?.[0] ? 'For ' + state.feedContext.posts[0].author.split('\n')[0].trim() : 'From current post'}</div>
           </div>
         </button>
         <button data-ai="post" class="ai-btn">
@@ -380,7 +482,7 @@ function renderDashboard() {
           </div>
           <div>
             <div style="font-size:13px;font-weight:600;color:#1e293b">Connect Note</div>
-            <div style="font-size:11px;color:#9ca3af">Personalized message</div>
+            <div style="font-size:11px;color:#9ca3af">${state.profileContext?.headline ? 'For this profile' : 'Personalized message'}</div>
           </div>
         </button>
       </div>
@@ -432,7 +534,10 @@ function renderTask(action, completedActions) {
     <div class="task-check ${done ? 'done' : ''}">
       <svg width="12" height="12" viewBox="0 0 20 20" fill="#fff"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
     </div>
-    <span class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${action.label}</span>
+    <div style="flex:1;min-width:0">
+      <div class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${action.label}</div>
+      ${action.sublabel ? `<div style="font-size:11px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${action.sublabel}</div>` : ''}
+    </div>
   </div>`;
 }
 
@@ -725,6 +830,23 @@ function attachOnboardingHandlers() {
 function attachDashboardHandlers() {
   if (state.goldenWindowStart) startGoldenWindowTimer();
 
+  // Context banner buttons
+  document.getElementById('btn-open-feed')?.addEventListener('click', async () => {
+    await chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' });
+    // Re-read context after a short delay for the tab to load
+    setTimeout(async () => {
+      await readPageContext();
+      render();
+    }, 2000);
+  });
+
+  document.getElementById('btn-refresh-context')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-refresh-context');
+    if (btn) { btn.textContent = '...'; btn.disabled = true; }
+    await readPageContext();
+    render();
+  });
+
   document.querySelectorAll('[data-action]').forEach(card => {
     card.addEventListener('click', async () => {
       const actionId = card.dataset.action;
@@ -851,8 +973,16 @@ async function handleAITool(type, params) {
         break;
       }
       case 'note': {
-        const name = params?.name || prompt('Their name:');
-        const headline = params?.headline || prompt('Their headline:');
+        let name = params?.name;
+        let headline = params?.headline;
+        // Auto-fill from profile context if on a profile page
+        if (!name && state.profileContext?.headline) {
+          // Parse name from headline (first line is usually the name area)
+          name = prompt('Their name:', '');
+          headline = state.profileContext.headline;
+        }
+        if (!name) name = prompt('Their name:');
+        if (!headline) headline = prompt('Their headline:');
         if (!name || !headline) { state.aiLoading = false; render(); return; }
         lastAICall = { type: 'note', params: { name, headline } };
         result = await api.generateConnectionNote(name, headline);
@@ -879,7 +1009,7 @@ function attachSettingsHandlers() {
 
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await api.logout();
-    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null };
+    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null };
     render();
   });
 
