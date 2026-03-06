@@ -200,6 +200,14 @@ function renderOnboarding() {
   return `<div class="p-6">
     <h2 class="text-lg font-bold mb-1">Welcome${userName ? ', ' + userName : ''}!</h2>
     <p class="text-gray-500 text-sm mb-4">Tell us about yourself so we can personalize your coaching.</p>
+
+    <button id="btn-parse-profile" class="w-full mb-4 py-2 bg-[#0A66C2] text-white rounded-lg text-sm font-medium hover:bg-[#004182] transition flex items-center justify-center gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      Import from LinkedIn Profile
+    </button>
+    <div id="parse-status" class="hidden mb-3 p-2 rounded-lg text-xs text-center"></div>
+    <p class="text-center text-xs text-gray-400 mb-3">- or fill in manually -</p>
+
     <form id="onboarding-form" class="space-y-3">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Your LinkedIn Headline</label>
@@ -549,6 +557,65 @@ function attach2FAHandlers() {
 }
 
 function attachOnboardingHandlers() {
+  document.getElementById('btn-parse-profile')?.addEventListener('click', async () => {
+    const statusEl = document.getElementById('parse-status');
+    const btn = document.getElementById('btn-parse-profile');
+
+    try {
+      // Check if we're on a LinkedIn profile page
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id || !tab.url?.includes('linkedin.com/in/')) {
+        statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-amber-50 text-amber-700';
+        statusEl.textContent = 'Go to your LinkedIn profile page first, then click this button.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Parsing...';
+
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PARSE_PROFILE' });
+      const profile = response?.profile;
+
+      if (!profile || !profile.headline) {
+        statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-amber-50 text-amber-700';
+        statusEl.textContent = 'Could not read profile. Make sure the page is fully loaded and try again.';
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
+        return;
+      }
+
+      // Fill in the fields
+      const headlineInput = document.getElementById('ob-headline');
+      const industryInput = document.getElementById('ob-industry');
+      const topicsInput = document.getElementById('ob-topics');
+
+      if (headlineInput && profile.headline) headlineInput.value = profile.headline;
+
+      // Derive industry from headline/experience/about
+      if (industryInput) {
+        const text = (profile.headline + ' ' + profile.experience.join(' ') + ' ' + profile.about).toLowerCase();
+        const industries = ['Technology', 'Software', 'Finance', 'Marketing', 'Healthcare', 'Education', 'Consulting', 'Design', 'Sales', 'Engineering', 'Product', 'Data', 'AI', 'Crypto', 'Real Estate', 'Media', 'Legal', 'HR'];
+        const matched = industries.filter(i => text.includes(i.toLowerCase()));
+        industryInput.value = matched.length > 0 ? matched.slice(0, 2).join(', ') : '';
+      }
+
+      // Use skills as topics
+      if (topicsInput && profile.skills.length > 0) {
+        topicsInput.value = profile.skills.slice(0, 5).join(', ');
+      }
+
+      statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-green-50 text-green-700';
+      statusEl.textContent = 'Profile imported! Review the fields and click Start.';
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
+    } catch (err) {
+      statusEl.className = 'mb-3 p-2 rounded-lg text-xs text-center bg-red-50 text-red-600';
+      statusEl.textContent = 'Failed to parse. Make sure you\'re on your LinkedIn profile page.';
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> Import from LinkedIn Profile';
+    }
+  });
+
   document.getElementById('onboarding-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const headline = document.getElementById('ob-headline').value;
