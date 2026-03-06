@@ -64,6 +64,49 @@ const getPageContext = () => {
   return 'other';
 };
 
+// Auto-detect likes and reactions
+(function setupInteractionTracking() {
+  // LinkedIn uses these buttons for like/react
+  // Like button: button with aria-label containing "Like" or reaction button classes
+  // Reactions: when user picks a reaction from the reaction picker
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const ariaPressed = btn.getAttribute('aria-pressed');
+
+    // Main like button - "like" button that toggles
+    // When aria-pressed is "false", user is about to like (will become true)
+    // LinkedIn like buttons have aria-label like "Like", "React Like", etc.
+    if (ariaLabel.includes('like') && !ariaLabel.includes('unlike') && ariaPressed === 'false') {
+      chrome.runtime.sendMessage({ type: 'USER_LIKED_POST' }).catch(() => {});
+      return;
+    }
+
+    // Reaction picker - non-like reactions (celebrate, support, love, insightful, funny)
+    // These appear in the reaction bar/menu with specific aria-labels
+    const reactionLabels = ['celebrate', 'support', 'love', 'insightful', 'funny', 'curious'];
+    if (reactionLabels.some(r => ariaLabel.includes(r))) {
+      chrome.runtime.sendMessage({ type: 'USER_REACTED_POST' }).catch(() => {});
+      return;
+    }
+  }, true); // Use capture to catch before LinkedIn's own handlers
+
+  // Also watch for reaction menu clicks (LinkedIn sometimes uses spans/imgs inside buttons)
+  document.addEventListener('click', (e) => {
+    // Reaction buttons in the popup menu have img elements with alt text
+    const img = e.target.closest('img');
+    if (!img) return;
+    const alt = (img.getAttribute('alt') || '').toLowerCase();
+    const reactionAlts = ['celebrate', 'support', 'love', 'insightful', 'funny', 'curious'];
+    if (reactionAlts.some(r => alt.includes(r))) {
+      chrome.runtime.sendMessage({ type: 'USER_REACTED_POST' }).catch(() => {});
+    }
+  }, true);
+})();
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_FEED_CONTEXT') {
     sendResponse({ page: getPageContext(), posts: readFeedPosts() });

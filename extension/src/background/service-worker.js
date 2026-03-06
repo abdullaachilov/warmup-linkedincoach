@@ -80,13 +80,20 @@ async function updateBadge() {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'UPDATE_STREAK') {
     chrome.storage.local.set({ currentStreak: msg.streak });
     updateBadge();
   }
   if (msg.type === 'START_GOLDEN_WINDOW') {
     chrome.storage.local.set({ goldenWindowStart: Date.now() });
+  }
+  // Forward like/react events from content script to side panel
+  if (msg.type === 'USER_LIKED_POST' || msg.type === 'USER_REACTED_POST') {
+    // Content scripts have sender.tab; forward to all extension pages (side panel)
+    if (sender.tab) {
+      chrome.runtime.sendMessage(msg).catch(() => {});
+    }
   }
 });
 

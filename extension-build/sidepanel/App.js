@@ -22,6 +22,8 @@ let state = {
   profileContext: null, // { profile } when on a profile page
   storyBank: [], // story bank entries
   storiesUsed: [], // story IDs used in last AI result
+  likeCount: 0, // auto-tracked likes this session
+  reactCount: 0, // auto-tracked non-like reactions this session
 };
 
 // Initialize
@@ -42,6 +44,7 @@ async function init() {
       return;
     }
 
+    await restoreInteractionCounts();
     await loadDashboard();
   } catch (err) {
     if (err.message === 'SESSION_EXPIRED') {
@@ -53,6 +56,62 @@ async function init() {
     render();
   }
 }
+
+// Restore today's like/react counts from storage
+async function restoreInteractionCounts() {
+  const { interactionCounts } = await chrome.storage.local.get('interactionCounts');
+  if (interactionCounts) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (interactionCounts.date === todayStr) {
+      state.likeCount = interactionCounts.likes || 0;
+      state.reactCount = interactionCounts.reacts || 0;
+    }
+  }
+}
+
+function saveInteractionCounts() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  chrome.storage.local.set({
+    interactionCounts: { date: todayStr, likes: state.likeCount, reacts: state.reactCount }
+  });
+}
+
+async function autoCompleteTask(actionId) {
+  if (!state.session) return;
+  const current = state.session.completed_actions || [];
+  if (current.includes(actionId)) return;
+  const updated = [...current, actionId];
+  state.session.completed_actions = updated;
+  render();
+  chrome.storage.local.set({ pendingSession: { completed_actions: updated } });
+  try {
+    await api.updateToday({ completed_actions: updated });
+    chrome.storage.local.remove('pendingSession');
+  } catch (err) {
+    console.error('Failed to save auto-complete:', err);
+  }
+}
+
+// Listen for like/react events forwarded from content script via service worker
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'USER_LIKED_POST') {
+    state.likeCount++;
+    saveInteractionCounts();
+    if (state.likeCount >= 5) autoCompleteTask('like_posts');
+    render();
+  }
+  if (msg.type === 'USER_REACTED_POST') {
+    state.reactCount++;
+    saveInteractionCounts();
+    if (state.reactCount >= 2) autoCompleteTask('react_posts');
+    render();
+  }
+  if (msg.type === 'DAILY_RESET') {
+    state.likeCount = 0;
+    state.reactCount = 0;
+    saveInteractionCounts();
+  }
+});
 
 async function readPageContext() {
   try {
@@ -305,8 +364,21 @@ function getEngageTasks() {
     }
   }
 
-  // Add remaining engage tasks
-  tasks.push(...DAILY_ACTIONS.engage.slice(3));
+  // Add remaining engage tasks with live counts
+  const likeTask = { ...DAILY_ACTIONS.engage[3] };
+  likeTask.label = `Like 5-8 posts`;
+  if (state.likeCount > 0) {
+    likeTask.sublabel = `${state.likeCount} liked so far`;
+  }
+  tasks.push(likeTask);
+
+  const reactTask = { ...DAILY_ACTIONS.engage[4] };
+  reactTask.label = `React (non-like) to 2 posts`;
+  if (state.reactCount > 0) {
+    reactTask.sublabel = `${state.reactCount} reacted so far`;
+  }
+  tasks.push(reactTask);
+
   return tasks;
 }
 
