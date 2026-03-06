@@ -38,8 +38,8 @@ router.post('/checkout', requireAuth, async (req: Request, res: Response) => {
       payment_method_types: ['card'],
       mode: isBYOK ? 'payment' : 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.APP_URL || 'https://warmup.li'}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.APP_URL || 'https://warmup.li'}/pricing`,
+      success_url: `${process.env.APP_URL || 'https://networkwarmup.com'}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.APP_URL || 'https://networkwarmup.com'}/pricing`,
       metadata: { userId: req.userId! },
     });
 
@@ -61,7 +61,7 @@ router.post('/portal', requireAuth, async (req: Request, res: Response) => {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripe_customer_id,
-      return_url: `${process.env.APP_URL || 'https://warmup.li'}/settings`,
+      return_url: `${process.env.APP_URL || 'https://networkwarmup.com'}/settings`,
     });
 
     res.json({ url: session.url });

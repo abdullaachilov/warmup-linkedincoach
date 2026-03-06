@@ -86,7 +86,7 @@ E) Go to chrome.google.com/webstore/devconsole
     - Submit for review
 
 F) After approval, copy Extension ID and update on Railway:
-    CORS_ORIGINS=chrome-extension://YOUR_EXTENSION_ID,https://warmup.li
+    CORS_ORIGINS=chrome-extension://YOUR_EXTENSION_ID,https://networkwarmup.com
 
 ---
 

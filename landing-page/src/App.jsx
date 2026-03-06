@@ -164,7 +164,7 @@ function App() {
           <div className="flex gap-6 text-sm text-gray-500">
             <a href="/privacy" className="hover:text-gray-900">Privacy Policy</a>
             <a href="/terms" className="hover:text-gray-900">Terms</a>
-            <a href="mailto:hello@warmup.li" className="hover:text-gray-900">Contact</a>
+            <a href="mailto:hello@networkwarmup.com" className="hover:text-gray-900">Contact</a>
           </div>
         </div>
       </footer>
