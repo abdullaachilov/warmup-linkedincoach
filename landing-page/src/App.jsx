@@ -99,7 +99,7 @@ function App() {
               { name: 'Free', price: '$0', period: 'forever', features: ['Daily checklist', 'Algorithm tips', 'Streak tracking', '2 AI suggestions/day'], cta: 'Get Started', highlight: false },
               { name: 'Starter', price: '$5', period: '/month', features: ['Everything in Free', '8 AI suggestions/day', 'Post idea generator', 'Priority support'], cta: 'Start Free Trial', highlight: false },
               { name: 'Pro', price: '$15', period: '/month', features: ['Everything in Starter', '40 AI suggestions/day', 'Weekly performance review', 'Content calendar'], cta: 'Start Free Trial', highlight: true },
-              { name: 'BYOK', price: '$5', period: '/year', features: ['Everything in Pro', 'Unlimited AI*', 'Use your own API key', '*Subject to Anthropic limits'], cta: 'Get Started', highlight: false },
+              { name: 'BYOK', price: '$5', period: '/6months', features: ['Everything in Pro', 'Unlimited AI*', 'Use your own API key', '*Subject to Anthropic limits'], cta: 'Get Started', highlight: false },
             ].map((plan) => (
               <div key={plan.name} className={`p-6 rounded-xl border ${plan.highlight ? 'border-purple-500 shadow-lg shadow-purple-100 relative' : 'border-gray-200'}`}>
                 {plan.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-purple-600 text-white text-xs font-medium rounded-full">Most Popular</div>}
@@ -150,7 +150,7 @@ function App() {
       <section className="py-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to grow your LinkedIn presence?</h2>
-          <p className="text-gray-600 mb-8">Join thousands of professionals who grow their reach in just 5 minutes a day.</p>
+          <p className="text-gray-600 mb-8">Join thousands of professionals who grow their reach in just 7 minutes a day.</p>
           <a href={CHROME_STORE_URL} className="px-8 py-3 bg-purple-600 text-white rounded-xl text-lg font-medium hover:bg-purple-700 transition shadow-lg shadow-purple-200 inline-block">
             Add to Chrome - Free
           </a>

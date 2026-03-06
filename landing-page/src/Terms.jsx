@@ -11,17 +11,17 @@ export default function Terms() {
 
       <div className="pt-24 pb-20 px-6 max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Terms of Service</h1>
-        <p className="text-sm text-gray-500 mb-8">Last updated: March 4, 2026</p>
+        <p className="text-sm text-gray-500 mb-8">Last updated: March 6, 2026</p>
 
         <div className="space-y-6 text-gray-700 text-sm leading-relaxed">
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">1. Service Description</h2>
-            <p>Warmup is a Chrome extension and web service that provides daily LinkedIn engagement coaching. It offers a guided checklist, AI-powered content suggestions, and streak tracking. Warmup does not automate any actions on LinkedIn - all actions are performed manually by the user.</p>
+            <p>Warmup is a Chrome extension and web service that provides daily LinkedIn engagement coaching. It offers AI-generated daily sessions, personalized content suggestions, streak tracking, and a Story Bank for authentic voice. Warmup does not automate any actions on LinkedIn - all actions are performed manually by you.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Account Registration</h2>
-            <p>You must provide a valid email address and verify it to use the service. You are responsible for maintaining the security of your account credentials. One account per person.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">2. Account and Authentication</h2>
+            <p>You sign in to Warmup using your LinkedIn account via OAuth. By signing in, you authorize us to receive your name, email address, and profile picture from LinkedIn. We do not receive your LinkedIn password or the ability to act on your behalf on LinkedIn. One account per person.</p>
           </section>
 
           <section>
@@ -33,6 +33,7 @@ export default function Terms() {
               <li>Not use the service to generate spam, misleading content, or content that violates LinkedIn's Terms of Service.</li>
               <li>Not reverse-engineer, decompile, or attempt to extract the source code of the service.</li>
               <li>Not share your account or API access with others.</li>
+              <li>Not use AI-generated content to impersonate others or misrepresent your identity.</li>
             </ul>
           </section>
 
@@ -57,27 +58,32 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. Service Availability</h2>
-            <p>We aim to maintain high availability but do not guarantee uninterrupted service. AI features depend on third-party APIs (Anthropic) and may be temporarily unavailable. Free tier AI features may be limited or disabled during high-demand periods.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">7. LinkedIn Compliance</h2>
+            <p>Warmup is not affiliated with or endorsed by LinkedIn. The extension reads publicly visible content on LinkedIn pages you visit to provide AI context. It does not automate clicks, posts, messages, or any other LinkedIn actions. You remain fully responsible for complying with LinkedIn's User Agreement.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">8. Termination</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">8. Service Availability</h2>
+            <p>We aim to maintain high availability but do not guarantee uninterrupted service. AI features depend on third-party APIs (Anthropic) and may be temporarily unavailable. Free tier AI features may be limited during high-demand periods.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">9. Termination</h2>
             <p>We reserve the right to suspend or terminate accounts that violate these terms, abuse the service, or engage in fraudulent activity. You may delete your account at any time by contacting us.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">9. Limitation of Liability</h2>
-            <p>Warmup is provided "as is" without warranties. We are not liable for any indirect, incidental, or consequential damages. Our total liability is limited to the amount you paid for the service in the past 12 months.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">10. Limitation of Liability</h2>
+            <p>Warmup is provided "as is" without warranties. We are not liable for any indirect, incidental, or consequential damages including but not limited to lost LinkedIn reach, account restrictions, or missed opportunities. Our total liability is limited to the amount you paid for the service in the past 12 months.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">10. Changes to Terms</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">11. Changes to Terms</h2>
             <p>We may update these terms from time to time. Continued use of the service after changes constitutes acceptance of the updated terms.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">11. Contact</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">12. Contact</h2>
             <p>For questions about these terms, contact: <a href="mailto:im@abdullaachilov.com" className="text-purple-600 underline">im@abdullaachilov.com</a></p>
           </section>
         </div>
