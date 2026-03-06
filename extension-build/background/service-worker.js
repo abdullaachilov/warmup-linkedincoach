@@ -100,9 +100,9 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'START_GOLDEN_WINDOW') {
     chrome.storage.local.set({ goldenWindowStart: Date.now() });
   }
-  // FOCUSED_POST, USER_LIKED_POST, USER_REACTED_POST from content scripts
+  // Content script events (FOCUSED_POST, USER_LIKED_POST, USER_REACTED_POST,
+  // USER_COMMENTED, USER_PUBLISHED_POST, USER_SENT_CONNECTION, USER_ACCEPTED_CONNECTION)
   // are received directly by the side panel via chrome.runtime.onMessage.
-  // No forwarding needed - chrome.runtime.sendMessage reaches all extension pages.
 });
 
 // Initial badge update

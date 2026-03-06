@@ -30,6 +30,9 @@ let state = {
   storiesUsed: [], // story IDs used in last AI result
   likeCount: 0, // auto-tracked likes this session
   reactCount: 0, // auto-tracked non-like reactions this session
+  commentCount: 0,
+  connectionsSent: 0,
+  connectionsAccepted: 0,
   focusedPost: null, // { author, text } - the post user is commenting on
   sessionGenerating: false, // true while AI session is being generated
   weeklyStats: null, // weekly progress data
@@ -74,6 +77,9 @@ async function restoreInteractionCounts() {
     if (interactionCounts.date === todayStr) {
       state.likeCount = interactionCounts.likes || 0;
       state.reactCount = interactionCounts.reacts || 0;
+      state.commentCount = interactionCounts.comments || 0;
+      state.connectionsSent = interactionCounts.connectionsSent || 0;
+      state.connectionsAccepted = interactionCounts.connectionsAccepted || 0;
     }
   }
 }
@@ -81,7 +87,11 @@ async function restoreInteractionCounts() {
 function saveInteractionCounts() {
   const todayStr = new Date().toISOString().split('T')[0];
   chrome.storage.local.set({
-    interactionCounts: { date: todayStr, likes: state.likeCount, reacts: state.reactCount }
+    interactionCounts: {
+      date: todayStr, likes: state.likeCount, reacts: state.reactCount,
+      comments: state.commentCount, connectionsSent: state.connectionsSent,
+      connectionsAccepted: state.connectionsAccepted,
+    }
   });
 }
 
@@ -134,9 +144,46 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
     render();
   }
+  if (msg.type === 'USER_COMMENTED') {
+    state.commentCount++;
+    saveInteractionCounts();
+    const commentAction = state.session?.session_data?.actions?.find(a =>
+      a.category === 'engage' && !a.completed && a.label.toLowerCase().includes('comment')
+    );
+    if (commentAction) autoCompleteAction(commentAction.id);
+    render();
+  }
+  if (msg.type === 'USER_PUBLISHED_POST') {
+    const postAction = state.session?.session_data?.actions?.find(a =>
+      a.category === 'create' && !a.completed && (a.label.toLowerCase().includes('post') || a.label.toLowerCase().includes('publish'))
+    );
+    if (postAction) autoCompleteAction(postAction.id);
+    render();
+  }
+  if (msg.type === 'USER_SENT_CONNECTION') {
+    state.connectionsSent++;
+    saveInteractionCounts();
+    const connectAction = state.session?.session_data?.actions?.find(a =>
+      a.category === 'connect' && !a.completed && (a.label.toLowerCase().includes('connect') || a.label.toLowerCase().includes('send'))
+    );
+    if (connectAction) autoCompleteAction(connectAction.id);
+    render();
+  }
+  if (msg.type === 'USER_ACCEPTED_CONNECTION') {
+    state.connectionsAccepted++;
+    saveInteractionCounts();
+    const acceptAction = state.session?.session_data?.actions?.find(a =>
+      a.category === 'connect' && !a.completed && a.label.toLowerCase().includes('accept')
+    );
+    if (acceptAction) autoCompleteAction(acceptAction.id);
+    render();
+  }
   if (msg.type === 'DAILY_RESET') {
     state.likeCount = 0;
     state.reactCount = 0;
+    state.commentCount = 0;
+    state.connectionsSent = 0;
+    state.connectionsAccepted = 0;
     saveInteractionCounts();
   }
 });

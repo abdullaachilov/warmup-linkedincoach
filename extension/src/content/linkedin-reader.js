@@ -152,6 +152,61 @@ const getPageContext = () => {
       chrome.runtime.sendMessage({ type: 'USER_REACTED_POST' }).catch(() => {});
     }
   }, true);
+
+  // Track comment submissions
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const text = (btn.textContent || '').trim().toLowerCase();
+    // LinkedIn comment submit button: "Post comment" or "Reply" or submit button in comment form
+    if (ariaLabel.includes('post comment') || ariaLabel.includes('submit comment') ||
+        (text === 'post' && btn.closest('.comments-comment-box__form, .comments-comment-texteditor')) ||
+        (text === 'reply' && btn.closest('.comments-comment-box__form, .comments-comment-texteditor'))) {
+      chrome.runtime.sendMessage({ type: 'USER_COMMENTED' }).catch(() => {});
+    }
+  }, true);
+
+  // Track post publishing
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const text = (btn.textContent || '').trim().toLowerCase();
+    // LinkedIn post button in the post composer modal
+    if (ariaLabel === 'post' || (text === 'post' && btn.closest('.share-box, .share-creation-state, .artdeco-modal'))) {
+      chrome.runtime.sendMessage({ type: 'USER_PUBLISHED_POST' }).catch(() => {});
+    }
+  }, true);
+
+  // Track sending connection requests
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const text = (btn.textContent || '').trim().toLowerCase();
+    // "Connect" button on profiles, search results, suggestions
+    if (ariaLabel.includes('connect') && !ariaLabel.includes('disconnect') && !ariaLabel.includes('pending')) {
+      chrome.runtime.sendMessage({ type: 'USER_SENT_CONNECTION' }).catch(() => {});
+      return;
+    }
+    // "Send" button inside the "Add a note" connection modal, or "Send without a note"
+    if ((text === 'send' || text === 'send without a note') && btn.closest('.artdeco-modal, .send-invite')) {
+      chrome.runtime.sendMessage({ type: 'USER_SENT_CONNECTION' }).catch(() => {});
+    }
+  }, true);
+
+  // Track accepting connection requests
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const text = (btn.textContent || '').trim().toLowerCase();
+    // "Accept" button on invitation cards
+    if (ariaLabel.includes('accept') || (text === 'accept' && btn.closest('.invitation-card, .mn-invitation-list'))) {
+      chrome.runtime.sendMessage({ type: 'USER_ACCEPTED_CONNECTION' }).catch(() => {});
+    }
+  }, true);
 })();
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
