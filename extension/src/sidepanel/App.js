@@ -534,6 +534,16 @@ function renderDashboard() {
       ${DAILY_ACTIONS.grow.map(a => renderTask(a, completedActions)).join('')}
     </div>` : ''}
 
+    <!-- Reflect -->
+    <div style="margin:16px 14px 0">
+      <div class="section-header">
+        <span class="section-badge" style="background:#fdf2f8;color:#be185d">Reflect</span>
+        <span style="font-size:13px;font-weight:600;color:#1e293b">Build your voice</span>
+        <span class="section-time">1 min</span>
+      </div>
+      ${DAILY_ACTIONS.reflect.map(a => renderTask(a, completedActions)).join('')}
+    </div>
+
     <!-- AI Tools -->
     <div style="margin:20px 14px 0">
       <div class="section-header">
@@ -591,6 +601,15 @@ function renderDashboard() {
     </div>` : ''}
 
     ${state.aiResult ? `
+    ${state.storyBank.length === 0 && state.aiResultType !== 'Error' ? `
+    <div style="margin:12px 14px 0;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:start;gap:10px">
+      <span style="font-size:16px;flex-shrink:0;margin-top:1px">&#x2728;</span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#92400e">This sounds generic - it's missing your voice</div>
+        <div style="font-size:11px;color:#a16207;margin-top:2px;line-height:1.5">Add a few stories (wins, lessons, opinions) to your Story Bank and the AI will write like you, not like everyone else.</div>
+        <button id="btn-add-stories-cta" style="margin-top:6px;padding:4px 12px;background:#f59e0b;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">Add stories now</button>
+      </div>
+    </div>` : ''}
     <div class="ai-result" style="margin:12px 14px">
       <div style="background:#fff;border:1px solid #e9e5f5;border-radius:12px;overflow:hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#faf5ff;border-bottom:1px solid #e9e5f5">
@@ -962,6 +981,8 @@ function attachDailyLogHandlers() {
     } catch (err) {
       console.error('Failed to save daily log:', err);
     }
+    // Auto-complete the daily log task
+    await autoCompleteTask('add_daily_log');
     state.view = 'dashboard';
     render();
   });
@@ -1187,6 +1208,14 @@ function attachDashboardHandlers() {
       const actionId = card.dataset.action;
       const current = state.session?.completed_actions || [];
       const wasCompleted = current.includes(actionId);
+
+      // Open daily log view when clicking the daily log task (if not already done)
+      if (actionId === 'add_daily_log' && !wasCompleted) {
+        state.view = 'daily-log';
+        render();
+        return;
+      }
+
       const updated = wasCompleted
         ? current.filter(a => a !== actionId)
         : [...current, actionId];
@@ -1226,6 +1255,14 @@ function attachDashboardHandlers() {
 
   document.querySelectorAll('[data-ai]').forEach(btn => {
     btn.addEventListener('click', () => handleAITool(btn.dataset.ai));
+  });
+
+  document.getElementById('btn-add-stories-cta')?.addEventListener('click', async () => {
+    if (state.storyBank.length === 0) {
+      try { const r = await api.getStoryBank(); state.storyBank = r.entries; } catch {}
+    }
+    state.view = 'story-bank';
+    render();
   });
 
   document.getElementById('btn-regenerate')?.addEventListener('click', () => {
@@ -1361,7 +1398,7 @@ function attachSettingsHandlers() {
 
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     await api.logout();
-    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [] };
+    state = { view: 'auth', user: null, session: null, streak: null, usage: null, error: null, aiLoading: false, aiResult: null, aiResultType: null, aiHistory: [], goldenWindowStart: null, goldenWindowTimer: null, tempToken: null, oauthSessionId: null, pollInterval: null, feedContext: null, profileContext: null, storyBank: [], storiesUsed: [], likeCount: 0, reactCount: 0 };
     render();
   });
 

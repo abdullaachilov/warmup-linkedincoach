@@ -38,4 +38,7 @@ export const DAILY_ACTIONS = {
     { id: 'follow_creators', label: 'Follow 1-2 creators/newsletters', category: 'grow' },
     { id: 'profile_viewers', label: 'Check profile viewers & connect', category: 'grow' },
   ],
+  reflect: [
+    { id: 'add_daily_log', label: 'Add a daily log to Story Bank', category: 'reflect' },
+  ],
 };
