@@ -1,6 +1,12 @@
 import { api } from './api/client.js';
 import { CONTENT_CALENDAR, DAILY_ACTIONS, TIER_LIMITS } from '../shared/constants.js';
 
+// Escape HTML to prevent XSS in innerHTML
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // State
 let state = {
   view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, onboarding-context, dashboard, settings, story-bank, daily-log
@@ -288,7 +294,7 @@ function renderAuth() {
       <div style="font-size:32px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent">Warmup</div>
       <p style="color:#6b7280;font-size:14px;margin-top:6px">Your Daily LinkedIn Growth Coach</p>
     </div>
-    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px;text-align:left">${state.error}</div>` : ''}
+    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px;text-align:left">${esc(state.error)}</div>` : ''}
     <button id="btn-linkedin-login" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:#0A66C2;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:background 0.15s">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
       Sign in with LinkedIn
@@ -315,7 +321,7 @@ function render2FA() {
       <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;background-clip:text;color:transparent">Warmup</div>
       <p style="color:#6b7280;font-size:13px;margin-top:6px">Two-Factor Authentication</p>
     </div>
-    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px">${state.error}</div>` : ''}
+    ${state.error ? `<div style="background:#fef2f2;color:#dc2626;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:16px">${esc(state.error)}</div>` : ''}
     <p style="font-size:13px;color:#6b7280;margin-bottom:16px">Enter the 6-digit code from your authenticator app.</p>
     <form id="2fa-form">
       <input type="text" id="2fa-code" placeholder="000000" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" style="width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:12px;font-size:24px;text-align:center;letter-spacing:8px;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'" />
@@ -366,10 +372,10 @@ function getEngageTasks() {
   for (let i = 0; i < 3; i++) {
     const post = posts[i];
     if (post && post.author && post.author !== 'Unknown') {
-      const snippet = post.text ? post.text.substring(0, 50).trim() : '';
+      const snippet = post.text ? esc(post.text.substring(0, 50).trim()) : '';
       tasks.push({
         id: `comment_${i + 1}`,
-        label: `Comment on ${post.author.split('\n')[0].trim()}'s post`,
+        label: `Comment on ${esc(post.author.split('\n')[0].trim())}'s post`,
         sublabel: snippet ? `"${snippet}..."` : null,
         category: 'engage',
       });
@@ -577,7 +583,7 @@ function renderDashboard() {
           </div>
           <div>
             <div style="font-size:13px;font-weight:600;color:#1e293b">Comment</div>
-            <div style="font-size:11px;color:${state.focusedPost ? '#2563eb' : '#9ca3af'}">${state.focusedPost ? 'For ' + state.focusedPost.author : state.feedContext?.posts?.[0] ? 'For ' + state.feedContext.posts[0].author.split('\n')[0].trim() : 'Click comment on a post'}</div>
+            <div style="font-size:11px;color:${state.focusedPost ? '#2563eb' : '#9ca3af'}">${state.focusedPost ? 'For ' + esc(state.focusedPost.author) : state.feedContext?.posts?.[0] ? 'For ' + esc(state.feedContext.posts[0].author.split('\n')[0].trim()) : 'Click comment on a post'}</div>
           </div>
         </button>
         <button data-ai="post" class="ai-btn">
@@ -639,7 +645,7 @@ function renderDashboard() {
             <button id="btn-copy" style="font-size:11px;padding:4px 10px;background:#7c3aed;border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:500">Copy</button>
           </div>
         </div>
-        <div style="padding:14px;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${state.aiResult}</div>
+        <div style="padding:14px;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${esc(state.aiResult)}</div>
         <div style="padding:0 14px 10px;font-size:11px;color:#9ca3af">${state.aiResult.length} characters</div>
         ${state.storiesUsed.length > 0 ? `<div style="padding:8px 14px 12px;border-top:1px solid #f3f4f6;font-size:11px;color:#6b7280">Based on ${state.storiesUsed.length} of your stories</div>` : ''}
       </div>
@@ -651,8 +657,8 @@ function renderDashboard() {
       <div id="ai-history" style="display:none;margin-top:8px">
         ${state.aiHistory.map((h, i) => `
           <div data-history="${i}" style="padding:10px 12px;background:#fff;border:1px solid #f3f4f6;border-radius:8px;margin-bottom:4px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#e9e5f5'" onmouseout="this.style.borderColor='#f3f4f6'">
-            <div style="font-size:11px;font-weight:600;color:#9ca3af">${h.type}</div>
-            <div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.text.substring(0, 80)}...</div>
+            <div style="font-size:11px;font-weight:600;color:#9ca3af">${esc(h.type)}</div>
+            <div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.text.substring(0, 80))}...</div>
           </div>
         `).join('')}
       </div>
@@ -667,8 +673,8 @@ function renderTask(action, completedActions) {
       <svg width="12" height="12" viewBox="0 0 20 20" fill="#fff"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
     </div>
     <div style="flex:1;min-width:0">
-      <div class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${action.label}</div>
-      ${action.sublabel ? `<div style="font-size:11px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${action.sublabel}</div>` : ''}
+      <div class="task-label" style="font-size:13px;color:${done ? '#9ca3af' : '#374151'}">${esc(action.label)}</div>
+      ${action.sublabel ? `<div style="font-size:11px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${esc(action.sublabel)}</div>` : ''}
     </div>
   </div>`;
 }
@@ -692,14 +698,14 @@ function renderSettings() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
           ${user.picture_url ? `<img src="${user.picture_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover" />` : `<div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;color:#9ca3af">${(user.name || '?')[0]}</div>`}
           <div>
-            <div style="font-size:14px;font-weight:600;color:#1e293b">${user.name || '-'}</div>
-            <div style="font-size:12px;color:#9ca3af">${user.email || '-'}</div>
+            <div style="font-size:14px;font-weight:600;color:#1e293b">${esc(user.name) || '-'}</div>
+            <div style="font-size:12px;color:#9ca3af">${esc(user.email) || '-'}</div>
           </div>
         </div>
         <div style="font-size:12px;color:#6b7280;line-height:1.8">
-          <div><span style="color:#9ca3af">Headline:</span> ${profile.headline || '-'}</div>
-          <div><span style="color:#9ca3af">Industry:</span> ${profile.industry || '-'}</div>
-          <div><span style="color:#9ca3af">Topics:</span> ${profile.topics?.join(', ') || '-'}</div>
+          <div><span style="color:#9ca3af">Headline:</span> ${esc(profile.headline) || '-'}</div>
+          <div><span style="color:#9ca3af">Industry:</span> ${esc(profile.industry) || '-'}</div>
+          <div><span style="color:#9ca3af">Topics:</span> ${esc(profile.topics?.join(', ')) || '-'}</div>
         </div>
         <button id="btn-edit-profile" style="margin-top:10px;background:none;border:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;font-weight:500">Edit profile</button>
       </div>
@@ -721,10 +727,10 @@ function renderSettings() {
     <div style="margin:16px 14px 0">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Voice & Context</div>
       <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6;font-size:12px;color:#6b7280;line-height:1.8">
-        <div><span style="color:#9ca3af">Work:</span> ${profile.work_situation || '-'}</div>
-        <div><span style="color:#9ca3af">Goals:</span> ${profile.current_goals || '-'}</div>
-        <div><span style="color:#9ca3af">Hot takes:</span> ${profile.hot_takes || '-'}</div>
-        <div><span style="color:#9ca3af">Style:</span> ${profile.communication_style || '-'}</div>
+        <div><span style="color:#9ca3af">Work:</span> ${esc(profile.work_situation) || '-'}</div>
+        <div><span style="color:#9ca3af">Goals:</span> ${esc(profile.current_goals) || '-'}</div>
+        <div><span style="color:#9ca3af">Hot takes:</span> ${esc(profile.hot_takes) || '-'}</div>
+        <div><span style="color:#9ca3af">Style:</span> ${esc(profile.communication_style) || '-'}</div>
         <button id="btn-edit-context" style="margin-top:8px;background:none;border:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;font-weight:500">Edit voice settings</button>
       </div>
     </div>
@@ -801,19 +807,19 @@ function renderOnboardingContext() {
     <form id="context-form">
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">What do you actually do day-to-day?</label>
-        <textarea id="ctx-work" rows="2" placeholder='e.g. "Solo contractor, code reviews, backend architecture for B2B SaaS clients"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.work_situation || ''}</textarea>
+        <textarea id="ctx-work" rows="2" placeholder='e.g. "Solo contractor, code reviews, backend architecture for B2B SaaS clients"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${esc(profile.work_situation)}</textarea>
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">What are you working toward right now?</label>
-        <textarea id="ctx-goals" rows="2" placeholder='e.g. "Transitioning to US remote roles, shipping indie products"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.current_goals || ''}</textarea>
+        <textarea id="ctx-goals" rows="2" placeholder='e.g. "Transitioning to US remote roles, shipping indie products"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${esc(profile.current_goals)}</textarea>
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">A hot take about your industry?</label>
-        <textarea id="ctx-takes" rows="2" placeholder='e.g. "Most developers are underusing AI tools and will regret it in 2 years"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.hot_takes || ''}</textarea>
+        <textarea id="ctx-takes" rows="2" placeholder='e.g. "Most developers are underusing AI tools and will regret it in 2 years"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${esc(profile.hot_takes)}</textarea>
       </div>
       <div style="margin-bottom:16px">
         <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px">How do you like to communicate?</label>
-        <textarea id="ctx-style" rows="2" placeholder='e.g. "Direct, technical, dry humor, no corporate fluff"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${profile.communication_style || ''}</textarea>
+        <textarea id="ctx-style" rows="2" placeholder='e.g. "Direct, technical, dry humor, no corporate fluff"' style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit">${esc(profile.communication_style)}</textarea>
       </div>
       <button type="submit" style="width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">Save & Start</button>
     </form>
@@ -897,8 +903,8 @@ function renderStoryBank() {
               <button data-del-story="${e.id}" style="background:none;border:none;font-size:16px;color:#9ca3af;cursor:pointer;padding:0;line-height:1" title="Remove">x</button>
             </div>
           </div>
-          <div style="font-size:13px;color:#374151;line-height:1.5">${e.content}</div>
-          ${e.tags?.length > 0 ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${e.tags.map(t => `<span style="font-size:10px;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#6b7280">${t}</span>`).join('')}</div>` : ''}
+          <div style="font-size:13px;color:#374151;line-height:1.5">${esc(e.content)}</div>
+          ${e.tags?.length > 0 ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${e.tags.map(t => `<span style="font-size:10px;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#6b7280">${esc(t)}</span>`).join('')}</div>` : ''}
           <div style="margin-top:6px;font-size:10px;color:#d1d5db">Used in ${e.used_count || 0} posts</div>
         </div>
       `).join('')}

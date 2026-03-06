@@ -28,7 +28,7 @@
     "type": "module"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none';"
+    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://warmup-api-production.up.railway.app; object-src 'none'; frame-src 'none';"
   },
   "action": {
     "default_icon": {
