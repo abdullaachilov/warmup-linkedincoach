@@ -12,6 +12,7 @@ import billingRoutes from './routes/billing.js';
 import userRoutes from './routes/user.js';
 import adminRoutes from './routes/admin.js';
 import { verifyRequestSignature } from './middleware/request-signing.js';
+import { cleanupExpiredTokens } from './services/auth.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -138,6 +139,10 @@ async function start() {
   } catch (err) {
     console.warn('Redis connection failed, continuing:', (err as Error).message);
   }
+
+  // Cleanup expired tokens every 6 hours
+  setInterval(cleanupExpiredTokens, 6 * 60 * 60 * 1000);
+  cleanupExpiredTokens();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Warmup API running on port ${PORT}`);

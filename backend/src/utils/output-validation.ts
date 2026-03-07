@@ -1,6 +1,5 @@
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/;
-const HTML_TAG_PATTERN = /<(?:script|style|iframe|object|embed|form|input|button|select|textarea|link|meta)[^>]*>/i;
-const SQL_PATTERN = /\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\s+/i;
+const HTML_TAG_PATTERN = /<(?:script|style|iframe|object|embed|form)[^>]*>/i;
 
 interface OutputLimits {
   maxLength: number;
@@ -25,14 +24,9 @@ export function validateOutput(text: string, endpoint: string): { valid: boolean
     return { valid: false, text: '', reason: 'Response contained code blocks.' };
   }
 
-  // Check for dangerous HTML
+  // Check for dangerous HTML (script, style, iframe, object, embed, form)
   if (HTML_TAG_PATTERN.test(text)) {
     return { valid: false, text: '', reason: 'Response contained HTML tags.' };
-  }
-
-  // Check for SQL patterns
-  if (SQL_PATTERN.test(text)) {
-    return { valid: false, text: '', reason: 'Response contained SQL statements.' };
   }
 
   // Truncate if needed

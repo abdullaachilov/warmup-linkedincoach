@@ -9,6 +9,26 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('JWT_SECRET environment variable is required in production');
 }
 const jwtSecret = JWT_SECRET || 'dev-secret-change-me';
+
+// TOTP secret encryption key - derived from JWT_SECRET to avoid another env var
+const TOTP_ENCRYPTION_KEY = crypto.createHash('sha256').update(`totp:${jwtSecret}`).digest();
+
+function encryptTOTP(secret: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', TOTP_ENCRYPTION_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return iv.toString('hex') + ':' + encrypted.toString('hex') + ':' + tag.toString('hex');
+}
+
+function decryptTOTP(data: string): string {
+  const parts = data.split(':');
+  if (parts.length !== 3) return data; // Unencrypted legacy value - return as-is
+  const [ivHex, encryptedHex, tagHex] = parts;
+  const decipher = crypto.createDecipheriv('aes-256-gcm', TOTP_ENCRYPTION_KEY, Buffer.from(ivHex, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  return decipher.update(Buffer.from(encryptedHex, 'hex')) + decipher.final('utf8');
+}
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || '';
@@ -189,7 +209,7 @@ export class AuthService {
       algorithm: 'SHA1',
       digits: 6,
       period: 30,
-      secret: user.totp_secret,
+      secret: decryptTOTP(user.totp_secret),
     });
 
     const delta = totp.validate({ token: totpCode, window: 1 });
@@ -269,7 +289,7 @@ export class AuthService {
 
     await db.query(
       'UPDATE users SET totp_secret = $1, totp_enabled = TRUE, updated_at = NOW() WHERE id = $2',
-      [secretBase32, userId]
+      [encryptTOTP(secretBase32), userId]
     );
     await redis.del(`2fa_setup:${userId}`);
   }
@@ -291,7 +311,7 @@ export class AuthService {
       algorithm: 'SHA1',
       digits: 6,
       period: 30,
-      secret: user.totp_secret,
+      secret: decryptTOTP(user.totp_secret),
     });
 
     const delta = totp.validate({ token: totpCode, window: 1 });
@@ -363,3 +383,21 @@ export class AppError extends Error {
 }
 
 export const authService = new AuthService();
+
+// Periodic cleanup of expired/used refresh tokens and old password reset tokens
+export async function cleanupExpiredTokens(): Promise<void> {
+  try {
+    const result = await db.query(
+      "DELETE FROM refresh_tokens WHERE used = TRUE OR expires_at < NOW() - INTERVAL '7 days'"
+    );
+    const resetResult = await db.query(
+      "DELETE FROM password_reset_tokens WHERE used = TRUE OR expires_at < NOW() - INTERVAL '1 day'"
+    );
+    const totalDeleted = (result.rowCount || 0) + (resetResult.rowCount || 0);
+    if (totalDeleted > 0) {
+      console.log(`Token cleanup: removed ${totalDeleted} expired tokens`);
+    }
+  } catch (err) {
+    console.error('Token cleanup failed:', (err as Error).message);
+  }
+}

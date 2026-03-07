@@ -13,18 +13,36 @@ function sanitizeText(text: string): string {
 
 // Prompt injection detection patterns
 const INJECTION_PATTERNS = [
-  /ignore\s+(all\s+)?previous\s+instructions/i,
-  /ignore\s+all\s+instructions/i,
-  /you\s+are\s+now/i,
-  /new\s+instructions:/i,
-  /system\s+prompt:/i,
-  /act\s+as/i,
-  /forget\s+everything/i,
-  /disregard\s+(all|previous|the|your)/i,
+  /\bignore\s+(all\s+)?previous\s+instructions\b/i,
+  /\bignore\s+(all\s+)?instructions\b/i,
+  /\byou\s+are\s+now\b/i,
+  /\bnew\s+instructions\s*:/i,
+  /\bsystem\s+prompt\s*:/i,
+  /\bforget\s+(everything|all|previous)\b/i,
+  /\bdisregard\s+(all|previous|the|your|above)\b/i,
+  /\bdo\s+not\s+follow\s+(the|your|previous)\b/i,
+  /\boverride\s+(all|previous|your|the|system)\b/i,
+  /\breturn\s+(only|just)?\s*(the|your)?\s*(system|initial)\s*prompt\b/i,
+  /\brepeat\s+(your|the|all)?\s*(system|initial)?\s*(prompt|instructions)\b/i,
+  /\bwhat\s+(are|were)\s+your\s+(instructions|rules|prompt)\b/i,
+  /\bpretend\s+(you\s+are|to\s+be|you're)\b/i,
+  /\broleplay\s+as\b/i,
+  /\bswitch\s+(to|into)\s+(a\s+)?(new|different)\s+(mode|role|persona)\b/i,
+  /\bjailbreak/i,
+  /\bDAN\s+mode\b/i,
+  /<\/?system>/i,
+  /\[\s*INST\s*\]/i,
+  /\bprint\s+(your|the|all)?\s*(system|initial)?\s*(prompt|instructions)\b/i,
 ];
 
+// Normalize unicode lookalikes to ASCII before checking
+function normalizeText(text: string): string {
+  return text.normalize('NFKC');
+}
+
 export function detectInjection(text: string): boolean {
-  return INJECTION_PATTERNS.some(pattern => pattern.test(text));
+  const normalized = normalizeText(text);
+  return INJECTION_PATTERNS.some(pattern => pattern.test(normalized));
 }
 
 export const suggestCommentSchema = z.object({
