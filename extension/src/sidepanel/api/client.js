@@ -81,10 +81,17 @@ class WarmupAPI {
   async refreshAuth() {
     if (!this.refreshToken) return false;
     try {
+      const body = { refreshToken: this.refreshToken };
+      const timestamp = Date.now().toString();
+      const signature = await signRequest(body, timestamp);
       const response = await fetch(`${API_URL}/api/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Warmup-Signature': signature,
+          'X-Warmup-Timestamp': timestamp,
+        },
+        body: JSON.stringify(body),
       });
       if (!response.ok) return false;
       const data = await response.json();

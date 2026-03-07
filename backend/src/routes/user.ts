@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { profileUpdateSchema, storyBankCreateSchema, storyBankUpdateSchema } from '../utils/input-validation.js';
+import { profileUpdateSchema, storyBankCreateSchema, storyBankUpdateSchema, isValidUUID } from '../utils/input-validation.js';
 import { db } from '../db.js';
 
 const router = Router();
@@ -115,8 +115,12 @@ router.post('/story-bank', async (req: Request, res: Response) => {
 
 router.put('/story-bank/:id', async (req: Request, res: Response) => {
   try {
+    const id = req.params.id as string;
+    if (!isValidUUID(id)) {
+      res.status(400).json({ error: 'Invalid ID format.' });
+      return;
+    }
     const data = storyBankUpdateSchema.parse(req.body);
-    const { id } = req.params;
 
     const sets: string[] = [];
     const params: any[] = [];
@@ -154,7 +158,11 @@ router.put('/story-bank/:id', async (req: Request, res: Response) => {
 
 router.delete('/story-bank/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
+    if (!isValidUUID(id)) {
+      res.status(400).json({ error: 'Invalid ID format.' });
+      return;
+    }
     const result = await db.query(
       'UPDATE story_bank_entries SET is_active = FALSE WHERE id = $1 AND user_id = $2 AND is_active = TRUE',
       [id, req.userId]
@@ -173,6 +181,16 @@ router.delete('/story-bank/:id', async (req: Request, res: Response) => {
 router.put('/byok', async (req: Request, res: Response) => {
   try {
     const { enabled } = req.body;
+
+    // Only allow enabling BYOK for users on the byok tier
+    if (enabled) {
+      const userResult = await db.query('SELECT tier FROM users WHERE id = $1', [req.userId]);
+      if (!userResult.rows[0] || userResult.rows[0].tier !== 'byok') {
+        res.status(403).json({ error: 'BYOK tier required to enable this feature.' });
+        return;
+      }
+    }
+
     await db.query(
       'UPDATE users SET byok_enabled = $1, updated_at = NOW() WHERE id = $2',
       [!!enabled, req.userId]

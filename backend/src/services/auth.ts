@@ -4,7 +4,11 @@ import { db } from '../db.js';
 import { redis } from '../redis.js';
 import type { User, TokenPayload } from '../types/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable is required in production');
+}
+const jwtSecret = JWT_SECRET || 'dev-secret-change-me';
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || '';
@@ -330,11 +334,11 @@ export class AuthService {
   }
 
   generateJWT(userId: string, tier: string, role?: string): string {
-    return jwt.sign({ userId, tier, role: role || 'user' } as TokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY } as jwt.SignOptions);
+    return jwt.sign({ userId, tier, role: role || 'user' } as TokenPayload, jwtSecret, { expiresIn: JWT_EXPIRY, algorithm: 'HS256' } as jwt.SignOptions);
   }
 
   verifyJWT(token: string): TokenPayload {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as TokenPayload;
   }
 
   private async generateRefreshToken(userId: string): Promise<string> {

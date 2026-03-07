@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { isValidUUID } from '../utils/input-validation.js';
 import { db } from '../db.js';
 
 const router = Router();
@@ -98,7 +99,11 @@ router.get('/spending', async (req: Request, res: Response) => {
 // Suspend/unsuspend user
 router.post('/users/:id/suspend', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
+    if (!isValidUUID(id)) {
+      res.status(400).json({ error: 'Invalid user ID format.' });
+      return;
+    }
     const { suspend } = req.body;
 
     if (id === req.userId) {

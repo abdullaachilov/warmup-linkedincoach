@@ -46,13 +46,13 @@ app.use(cors({
       callback(null, true);
       return;
     }
-    if (allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-BYOK-Key', 'X-Warmup-Signature', 'X-Warmup-Timestamp'],
   credentials: true,
 }));
@@ -93,6 +93,10 @@ app.use('/api/ai', verifyRequestSignature);
 app.use('/api/me', verifyRequestSignature);
 app.use('/api/sessions', verifyRequestSignature);
 app.use('/api/admin', verifyRequestSignature);
+app.use('/api/billing', (req, res, next) => {
+  if (req.path === '/webhook') return next();
+  verifyRequestSignature(req, res, next);
+});
 
 // Security headers on every response
 app.use((_req, res, next) => {

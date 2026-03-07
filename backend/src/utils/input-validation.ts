@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 // Strip control characters and null bytes
 function sanitizeText(text: string): string {
   return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim();
@@ -94,6 +100,10 @@ export const sessionGenerateSchema = z.object({
 export const actionCompleteSchema = z.object({
   action_id: z.string().min(1).max(100),
   completed: z.boolean(),
+});
+
+export const scorePostSchema = z.object({
+  draft: z.string().min(10).max(5000).transform(sanitizeText),
 });
 
 export const postPerformanceSchema = z.object({

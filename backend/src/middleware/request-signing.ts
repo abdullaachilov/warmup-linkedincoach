@@ -4,7 +4,11 @@ import crypto from 'crypto';
 const MAX_TIMESTAMP_DRIFT_MS = 30000; // 30 seconds
 
 function getSharedSecret(): string {
-  return process.env.HMAC_SHARED_SECRET || 'dev-shared-secret';
+  const secret = process.env.HMAC_SHARED_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('HMAC_SHARED_SECRET environment variable is required in production');
+  }
+  return secret || 'dev-shared-secret';
 }
 
 export function verifyRequestSignature(req: Request, res: Response, next: NextFunction): void {

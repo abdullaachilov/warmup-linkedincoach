@@ -1,5 +1,5 @@
 export const API_URL = 'https://api.networkwarmup.com';
-export const HMAC_SECRET = 'd9890bfabc43e5f0c9845f11b698ce7d82bfe846b9363f6847ff8b937e4c2cfa';
+export const HMAC_SECRET = '__HMAC_SECRET__'; // Replaced at build time by scripts/build-extension.sh
 
 export const TIER_LIMITS = {
   free: 2,

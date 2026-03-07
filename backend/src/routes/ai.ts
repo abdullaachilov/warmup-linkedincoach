@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBYOKKey, extractBYOKKey } from '../middleware/byok-handler.js';
 import { makeAISuggestion, checkUsageLimit } from '../services/ai-proxy.js';
-import { suggestCommentSchema, draftPostSchema, postIdeasSchema, connectionNoteSchema, detectInjection } from '../utils/input-validation.js';
+import { suggestCommentSchema, draftPostSchema, postIdeasSchema, connectionNoteSchema, scorePostSchema, detectInjection } from '../utils/input-validation.js';
 import { validateOutput, FALLBACK_RESPONSE } from '../utils/output-validation.js';
 import { SYSTEM_PROMPTS, wrapUserContent, addInjectionAnchor } from '../utils/prompts.js';
 import { TOKEN_LIMITS } from '../types/index.js';
@@ -187,15 +187,8 @@ Their headline: ${data.target_headline}
 
 router.post('/score-post', async (req: Request, res: Response) => {
   try {
-    const { draft } = req.body;
-    if (!draft || typeof draft !== 'string' || draft.length < 10) {
-      res.status(400).json({ error: 'Post draft required (minimum 10 characters).' });
-      return;
-    }
-    if (draft.length > 5000) {
-      res.status(400).json({ error: 'Post draft too long (max 5000 characters).' });
-      return;
-    }
+    const data = scorePostSchema.parse(req.body);
+    const draft = data.draft;
 
     const byokKey = extractBYOKKey(req);
     const tier = (byokKey ? 'byok' : req.userTier) as 'free' | 'starter' | 'pro' | 'byok';

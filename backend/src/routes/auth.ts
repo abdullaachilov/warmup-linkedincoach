@@ -93,6 +93,17 @@ router.post('/2fa/validate', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Code must be 6 digits.' });
       return;
     }
+
+    // Rate limit per tempToken: max 5 attempts
+    const attemptKey = `2fa_attempts:${tempToken}`;
+    const attempts = parseInt(await redis.get(attemptKey) || '0');
+    if (attempts >= 5) {
+      res.status(429).json({ error: 'Too many attempts. Request a new login.' });
+      return;
+    }
+    await redis.incr(attemptKey);
+    await redis.expire(attemptKey, 300);
+
     const result = await authService.validate2FA(tempToken, code);
     res.json(result);
   } catch (err: unknown) {
@@ -185,11 +196,16 @@ router.post('/logout', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Simple HTML page shown after OAuth callback
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function authPage(message: string, success: boolean): string {
   const color = success ? '#10B981' : '#EF4444';
   const icon = success ? '&#10003;' : '&#10007;';
   return `<!DOCTYPE html>
 <html><head><title>Warmup - Login</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f9fafb; }
   .card { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 400px; }
@@ -200,7 +216,7 @@ function authPage(message: string, success: boolean): string {
 <body><div class="card">
   <div class="icon">${icon}</div>
   <h2>${success ? 'Done!' : 'Oops'}</h2>
-  <p>${message}</p>
+  <p>${escapeHtml(message)}</p>
 </div></body></html>`;
 }
 

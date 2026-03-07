@@ -7,6 +7,12 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function safeImgUrl(url) {
+  if (!url) return '';
+  if (!url.startsWith('https://') && !url.startsWith('data:image/')) return '';
+  return esc(url);
+}
+
 // State
 let state = {
   view: 'loading', // loading, auth, auth-polling, auth-2fa, onboarding, onboarding-context, dashboard, settings, story-bank, daily-log, weekly
@@ -783,7 +789,7 @@ function renderSettings() {
       <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Profile</div>
       <div style="background:#fff;border-radius:12px;padding:14px;border:1px solid #f3f4f6">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          ${user.picture_url ? `<img src="${user.picture_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover" />` : `<div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;color:#9ca3af">${(user.name || '?')[0]}</div>`}
+          ${safeImgUrl(user.picture_url) ? `<img src="${safeImgUrl(user.picture_url)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover" />` : `<div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;color:#9ca3af">${esc((user.name || '?')[0])}</div>`}
           <div>
             <div style="font-size:14px;font-weight:600;color:#1e293b">${esc(user.name) || '-'}</div>
             <div style="font-size:12px;color:#9ca3af">${esc(user.email) || '-'}</div>

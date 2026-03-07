@@ -6,3 +6,5 @@ coverage/
 .DS_Store
 .github/workflows/test.yml
 .idea/
+extension-build/
+security-audit.txt
